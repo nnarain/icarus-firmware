@@ -1,0 +1,14 @@
+cargo-features = ["per-package-target"]
+
+[package]
+name = "icarus"
+version = "0.1.0"
+edition = "2018"
+forced-target = "thumbv7em-none-eabihf"
+
+[dependencies]
+cortex-m = "0.6"
+cortex-m-rt = "0.6"
+stm32f3xx-hal = {version = "0.8.1", features = ["stm32f302x8", "rt"]}
+
+embedded-hal = {version = "0.2", features = ["unproven"]}
