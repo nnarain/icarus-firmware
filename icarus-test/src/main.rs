@@ -13,23 +13,14 @@ use panic_halt as _;
 use icarus::{
     entry,
     prelude::*,
-    hal::pac,
     cortex_m::asm,
 };
 
 #[entry]
 fn main() -> ! {
-    let dp = pac::Peripherals::take().unwrap();
-
-    let mut rcc = dp.RCC.constrain();
-    let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
-
-    let mut stat1 = gpioa
-        .pa4
-        .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper);
-    let mut stat2 = gpioa
-        .pa5
-        .into_push_pull_output(&mut gpioa.moder, &mut gpioa.otyper);
+    let icarus = Icarus::new().unwrap();
+    let mut stat1 = icarus.stat1;
+    let mut stat2 = icarus.stat2;
 
     stat2.toggle().unwrap();
 
