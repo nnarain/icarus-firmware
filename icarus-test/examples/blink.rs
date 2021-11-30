@@ -1,9 +1,8 @@
-
 //
-// main.rs
+// blink.rs
 //
 // @author Natesh Narain <nnaraindev@gmail.com>
-// @date Nov 27 2021
+// @date Nov 29 2021
 //
 #![no_std]
 #![no_main]
@@ -19,6 +18,7 @@ use icarus::{
 #[entry]
 fn main() -> ! {
     let icarus = Icarus::new().unwrap();
+
     let mut stat1 = icarus.stat1;
     let mut stat2 = icarus.stat2;
 
