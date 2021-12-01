@@ -11,4 +11,5 @@ cortex-m = "0.6"
 cortex-m-rt = "0.6"
 stm32f3xx-hal = {version = "0.8.1", features = ["stm32f302x8", "rt"]}
 
-embedded-hal = {version = "0.2", features = ["unproven"]}
+shared-bus = "0.2.2"
+mpu6050 = "0.1.4"

@@ -1,5 +1,11 @@
 [workspace]
 members = [
     "icarus",
-    "icarus-test"
+    "icarus-test",
+
+    # External packages for patching crates.io
+    "external/mpu6050"
 ]
+
+[patch.crates-io]
+mpu6050 = {path = "external/mpu6050"}

@@ -1,5 +1,5 @@
 [alias]
-icarus-flash = "run --package icarus-test --target thumbv7em-none-eabihf"
+icarus-flash = "run --package icarus-test --target thumbv7em-none-eabihf --release"
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
 runner = "gdb -q -x stm32.gdb"

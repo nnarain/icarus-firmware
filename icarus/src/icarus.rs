@@ -5,33 +5,49 @@
 // @date Nov 29 2021
 //
 
+use core::convert::TryInto;
+
 use crate::{
     hal::{
         self,
         prelude::*,
         pac,
-        gpio::{self, Output, PushPull, Alternate},
+        gpio::{self, Output, PushPull, Alternate, OpenDrain},
         serial::Serial,
+        i2c,
+        delay::Delay,
     },
     IcarusError
 };
+
+use shared_bus::{BusManagerSimple, I2cProxy, NullMutex};
 
 type PinTx1 = gpio::PA9<Alternate<PushPull, 7>>;
 type PinRx1 = gpio::PA10<Alternate<PushPull, 7>>;
 type PinTx2 = gpio::PB3<Alternate<PushPull, 7>>;
 type PinRx2 = gpio::PB4<Alternate<PushPull, 7>>;
+type PinScl = gpio::PB6<Alternate<OpenDrain, 4>>;
+type PinSda = gpio::PB7<Alternate<OpenDrain, 4>>;
+
+pub type I2c = i2c::I2c<pac::I2C1, (PinScl, PinSda)>;
+pub type I2cBus<'a> = I2cProxy<'a, NullMutex<I2c>>;
 
 /// Pinout for icarus controller
 pub struct Icarus {
-    pub stat1: gpio::PA4<Output<PushPull>>,            // Status LED 1
-    pub stat2: gpio::PA5<Output<PushPull>>,            // Status LED 2
+    pub stat1: gpio::PA4<Output<PushPull>>,                      // Status LED 1
+    pub stat2: gpio::PA5<Output<PushPull>>,                      // Status LED 2
 
-    pub usart1: Serial<pac::USART1, (PinTx1, PinRx1)>, // Serial Port 1
-    pub usart2: Serial<pac::USART2, (PinTx2, PinRx2)>, // Serial Port 2
+    pub usart1: Serial<pac::USART1, (PinTx1, PinRx1)>,           // Serial Port 1
+    pub usart2: Serial<pac::USART2, (PinTx2, PinRx2)>,           // Serial Port 2
+
+    pub i2c: BusManagerSimple<I2c>, // I2C
+
+    pub delay: Delay,
 }
 
 impl Icarus {
     pub fn new() -> Result<Icarus, IcarusError> {
+        let cp = hal::pac::CorePeripherals::take().unwrap();
         let dp = hal::pac::Peripherals::take().unwrap();
 
         let mut flash = dp.FLASH.constrain();
@@ -61,6 +77,16 @@ impl Icarus {
 
         let usart2 = Serial::new(dp.USART2, (tx2, rx2), 115200.Bd(), clocks, &mut rcc.apb1);
 
+        // I2C
+        let scl = gpiob.pb6.into_af4_open_drain(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrl);
+        let sda = gpiob.pb7.into_af4_open_drain(&mut gpiob.moder, &mut gpiob.otyper, &mut gpiob.afrl);
+
+        let i2c = i2c::I2c::new(dp.I2C1, (scl, sda), 400.kHz().try_into().unwrap(), clocks, &mut rcc.apb1);
+        let i2c = BusManagerSimple::new(i2c);
+
+        // Delay
+        let delay = Delay::new(cp.SYST, clocks);
+
         Ok(
             Icarus {
                 stat1,
@@ -68,6 +94,10 @@ impl Icarus {
 
                 usart1,
                 usart2,
+
+                i2c,
+
+                delay,
             }
         )
     }

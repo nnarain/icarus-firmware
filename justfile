@@ -1,2 +1,2 @@
 run-example example:
-	cargo run --example {{example}} --target thumbv7em-none-eabihf
+	cargo run --package icarus-test --release --example {{example}} --target thumbv7em-none-eabihf
