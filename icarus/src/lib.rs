@@ -6,6 +6,7 @@
 //
 #![no_std]
 mod icarus;
+pub mod sensors;
 
 pub use cortex_m;
 pub use cortex_m_rt as rt;
