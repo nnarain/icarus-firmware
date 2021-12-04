@@ -12,7 +12,7 @@ use crate::{
         self,
         prelude::*,
         pac,
-        gpio::{self, Output, PushPull, Alternate, OpenDrain},
+        gpio::{self, Output, PushPull, Alternate, OpenDrain, Input},
         serial::Serial,
         i2c,
         delay::Delay,
@@ -34,13 +34,24 @@ pub type I2cBus<'a> = I2cProxy<'a, NullMutex<I2c>>;
 
 /// Pinout for icarus controller
 pub struct Icarus {
-    pub stat1: gpio::PA4<Output<PushPull>>,                      // Status LED 1
-    pub stat2: gpio::PA5<Output<PushPull>>,                      // Status LED 2
+    pub stat1: gpio::PA4<Output<PushPull>>,            // Status LED 1
+    pub stat2: gpio::PA5<Output<PushPull>>,            // Status LED 2
 
-    pub usart1: Serial<pac::USART1, (PinTx1, PinRx1)>,           // Serial Port 1
-    pub usart2: Serial<pac::USART2, (PinTx2, PinRx2)>,           // Serial Port 2
+    pub usart1: Serial<pac::USART1, (PinTx1, PinRx1)>, // Serial Port 1
+    pub usart2: Serial<pac::USART2, (PinTx2, PinRx2)>, // Serial Port 2
 
-    pub i2c: BusManagerSimple<I2c>, // I2C
+    pub i2c: BusManagerSimple<I2c>,                    // I2C
+
+    
+    pub d1: gpio::PB8<Input>,
+    pub d2: gpio::PB9<Input>,
+    pub d3: gpio::PB10<Input>,
+    pub d4: gpio::PB11<Input>,
+    pub d5: gpio::PB12<Input>,
+
+    pub sck: gpio::PB13<Input>,
+    pub miso: gpio::PB14<Input>,
+    pub mosi: gpio::PB15<Input>,
 
     pub delay: Delay,
 }
@@ -84,6 +95,17 @@ impl Icarus {
         let i2c = i2c::I2c::new(dp.I2C1, (scl, sda), 400.kHz().try_into().unwrap(), clocks, &mut rcc.apb1);
         let i2c = BusManagerSimple::new(i2c);
 
+        // GPIO + SPI pins
+        let d1 = gpiob.pb8;
+        let d2 = gpiob.pb9;
+        let d3 = gpiob.pb10;
+        let d4 = gpiob.pb11;
+        let d5 = gpiob.pb12;
+
+        let sck = gpiob.pb13;
+        let miso = gpiob.pb14;
+        let mosi = gpiob.pb15;
+
         // Delay
         let delay = Delay::new(cp.SYST, clocks);
 
@@ -96,6 +118,16 @@ impl Icarus {
                 usart2,
 
                 i2c,
+
+                d1,
+                d2,
+                d3,
+                d4,
+                d5,
+
+                sck,
+                miso,
+                mosi,
 
                 delay,
             }
