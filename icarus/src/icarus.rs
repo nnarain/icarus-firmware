@@ -35,34 +35,55 @@ pub type I2cBus<'a> = I2cProxy<'a, NullMutex<I2c>>;
 
 /// Pinout for icarus controller
 pub struct Icarus {
-    pub stat1: gpio::PA4<Output<PushPull>>,            // Status LED 1
-    pub stat2: gpio::PA5<Output<PushPull>>,            // Status LED 2
+    /// Status LED 1
+    pub stat1: gpio::PA4<Output<PushPull>>,
+    /// Status LED 2
+    pub stat2: gpio::PA5<Output<PushPull>>,
 
-    pub usart1: Serial<pac::USART1, (PinTx1, PinRx1)>, // Serial Port 1
-    pub usart2: Serial<pac::USART2, (PinTx2, PinRx2)>, // Serial Port 2
+    /// Serial Port 1
+    pub usart1: Serial<pac::USART1, (PinTx1, PinRx1)>,
+    /// Serial Port 2
+    pub usart2: Serial<pac::USART2, (PinTx2, PinRx2)>,
 
-    pub i2c: BusManagerSimple<I2c>,                    // I2C
+    /// I2C bus
+    pub i2c: BusManagerSimple<I2c>,
 
+    /// PWM Channel 1
     pub pwm1: pwm::PwmChannel<pwm::Tim2Ch1, pwm::WithPins>,
+    /// PWM Channel 2
     pub pwm2: pwm::PwmChannel<pwm::Tim2Ch2, pwm::WithPins>,
+    /// PWM Channel 3
     pub pwm3: pwm::PwmChannel<pwm::Tim2Ch3, pwm::WithPins>,
+    /// PWM Channel 4
     pub pwm4: pwm::PwmChannel<pwm::Tim2Ch4, pwm::WithPins>,
+    /// PWM Channel 6
     pub pwm6: pwm::PwmChannel<pwm::Tim17Ch1, pwm::WithPins>,
 
+    /// GPIO 1
     pub d1: gpio::PB8<Input>,
+    /// GPIO 2
     pub d2: gpio::PB9<Input>,
+    /// GPIO 3
     pub d3: gpio::PB10<Input>,
+    /// GPIO 4
     pub d4: gpio::PB11<Input>,
+    /// GPIO 5
     pub d5: gpio::PB12<Input>,
 
+    /// SPI CLK
     pub sck: gpio::PB13<Input>,
+    /// SPI MISO
     pub miso: gpio::PB14<Input>,
+    /// SPI MOSI
     pub mosi: gpio::PB15<Input>,
 
+    /// Delay timer
     pub delay: Delay,
 }
 
 impl Icarus {
+    /// Construct an instance of the icarus hardware representation
+    /// This will *take* the core and device peripherals
     pub fn new() -> Result<Icarus, IcarusError> {
         let cp = hal::pac::CorePeripherals::take().unwrap();
         let dp = hal::pac::Peripherals::take().unwrap();

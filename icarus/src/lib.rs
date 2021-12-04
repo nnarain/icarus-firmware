@@ -5,6 +5,9 @@
 // @date Nov 28 2021
 //
 #![no_std]
+
+#[deny(missing_docs)]
+
 mod icarus;
 pub mod sensors;
 
