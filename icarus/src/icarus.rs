@@ -16,6 +16,7 @@ use crate::{
         serial::Serial,
         i2c,
         delay::Delay,
+        pwm,
     },
     IcarusError
 };
@@ -42,7 +43,12 @@ pub struct Icarus {
 
     pub i2c: BusManagerSimple<I2c>,                    // I2C
 
-    
+    pub pwm1: pwm::PwmChannel<pwm::Tim2Ch1, pwm::WithPins>,
+    pub pwm2: pwm::PwmChannel<pwm::Tim2Ch2, pwm::WithPins>,
+    pub pwm3: pwm::PwmChannel<pwm::Tim2Ch3, pwm::WithPins>,
+    pub pwm4: pwm::PwmChannel<pwm::Tim2Ch4, pwm::WithPins>,
+    pub pwm6: pwm::PwmChannel<pwm::Tim17Ch1, pwm::WithPins>,
+
     pub d1: gpio::PB8<Input>,
     pub d2: gpio::PB9<Input>,
     pub d3: gpio::PB10<Input>,
@@ -95,6 +101,28 @@ impl Icarus {
         let i2c = i2c::I2c::new(dp.I2C1, (scl, sda), 400.kHz().try_into().unwrap(), clocks, &mut rcc.apb1);
         let i2c = BusManagerSimple::new(i2c);
 
+        // PWM
+        let pwm_pin1 = gpioa.pa0.into_af1_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+        let pwm_pin2 = gpioa.pa1.into_af1_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+        let pwm_pin3 = gpioa.pa2.into_af1_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+        let pwm_pin4 = gpioa.pa3.into_af1_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+        let _pwm_pin5 = gpioa.pa6.into_af1_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+        let pwm_pin6 = gpioa.pa7.into_af1_push_pull(&mut gpioa.moder, &mut gpioa.otyper, &mut gpioa.afrl);
+
+        // Setup timer channels for PWM
+        // TODO(nnarain): Define what the resolution should be
+        // TODO(nnarain): Configurable frequency
+        let tim2 = pwm::tim2(dp.TIM2, 1280, 50.Hz(), &clocks);
+        let _tim16 = pwm::tim16(dp.TIM16, 1280, 50.Hz(), &clocks);
+        let tim17 = pwm::tim17(dp.TIM17, 1280, 50.Hz(), &clocks);
+
+        let pwm1 = tim2.0.output_to_pa0(pwm_pin1);
+        let pwm2 = tim2.1.output_to_pa1(pwm_pin2);
+        let pwm3 = tim2.2.output_to_pa2(pwm_pin3);
+        let pwm4 = tim2.3.output_to_pa3(pwm_pin4);
+        // let pwm5 = tim16.output_to_pa6(p)
+        let pwm6 = tim17.output_to_pa7(pwm_pin6);
+
         // GPIO + SPI pins
         let d1 = gpiob.pb8;
         let d2 = gpiob.pb9;
@@ -118,6 +146,12 @@ impl Icarus {
                 usart2,
 
                 i2c,
+
+                pwm1,
+                pwm2,
+                pwm3,
+                pwm4,
+                pwm6,
 
                 d1,
                 d2,
