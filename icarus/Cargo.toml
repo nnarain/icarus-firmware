@@ -7,9 +7,9 @@ edition = "2018"
 forced-target = "thumbv7em-none-eabihf"
 
 [dependencies]
-cortex-m = "0.6"
+cortex-m = "0.7"
 cortex-m-rt = "0.6"
-stm32f3xx-hal = {version = "0.8.1", features = ["stm32f302x8", "rt"]}
+stm32f3xx-hal = {version = "0.8", features = ["stm32f302x8", "rt"]}
 
 shared-bus = "0.2.2"
 mpu6050 = "0.1.4"

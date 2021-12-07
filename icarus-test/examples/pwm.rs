@@ -17,7 +17,7 @@ use icarus::{
 
 #[entry]
 fn main() -> ! {
-    let icarus = Icarus::new().unwrap();
+    let icarus = Icarus::take().unwrap();
 
     let mut pwm1 = icarus.pwm1;
     let mut pwm2 = icarus.pwm2;

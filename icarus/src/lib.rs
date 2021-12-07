@@ -6,10 +6,11 @@
 //
 #![no_std]
 
-#[deny(missing_docs)]
+#[warn(missing_docs)]
 
 mod icarus;
 pub mod sensors;
+pub mod types;
 
 pub use cortex_m;
 pub use cortex_m_rt as rt;
