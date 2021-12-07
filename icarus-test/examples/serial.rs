@@ -19,7 +19,7 @@ use core::fmt::Write;
 
 #[entry]
 fn main() -> ! {
-    let icarus = Icarus::new().unwrap();
+    let icarus = Icarus::take().unwrap();
     let mut usart1 = icarus.usart1;
     let mut usart2 = icarus.usart2;
 

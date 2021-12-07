@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "icarus",
+    "icarus-app",
     "icarus-test",
 
     # External packages for patching crates.io

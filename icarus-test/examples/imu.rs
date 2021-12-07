@@ -20,7 +20,7 @@ use core::fmt::Write;
 
 #[entry]
 fn main() -> ! {
-    let icarus = Icarus::new().unwrap();
+    let icarus = Icarus::take().unwrap();
     let i2c = icarus.i2c;
     let mut delay = icarus.delay;
     let mut serial = icarus.usart1;

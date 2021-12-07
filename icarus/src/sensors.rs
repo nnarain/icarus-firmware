@@ -7,7 +7,7 @@
 
 pub mod imu {
     use mpu6050::Mpu6050;
-    use crate::icarus::I2cBus;
+    use crate::types::I2cBus;
 
     // Re-exports
     pub type Imu<'a> = Mpu6050<I2cBus<'a>>;

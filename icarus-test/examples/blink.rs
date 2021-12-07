@@ -17,7 +17,7 @@ use icarus::{
 
 #[entry]
 fn main() -> ! {
-    let icarus = Icarus::new().unwrap();
+    let icarus = Icarus::take().unwrap();
 
     let mut stat1 = icarus.stat1;
     let mut stat2 = icarus.stat2;

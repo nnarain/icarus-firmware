@@ -12,28 +12,19 @@ use crate::{
         self,
         prelude::*,
         pac,
-        gpio::{self, Output, PushPull, Alternate, OpenDrain, Input},
+        gpio::{self, Output, PushPull, Input},
         serial::Serial,
         i2c,
         delay::Delay,
         pwm,
     },
+    types::*,
     IcarusError
 };
 
-use shared_bus::{BusManagerSimple, I2cProxy, NullMutex};
+use shared_bus::BusManagerSimple;
 
-type PinTx1 = gpio::PA9<Alternate<PushPull, 7>>;
-type PinRx1 = gpio::PA10<Alternate<PushPull, 7>>;
-type PinTx2 = gpio::PB3<Alternate<PushPull, 7>>;
-type PinRx2 = gpio::PB4<Alternate<PushPull, 7>>;
-type PinScl = gpio::PB6<Alternate<OpenDrain, 4>>;
-type PinSda = gpio::PB7<Alternate<OpenDrain, 4>>;
-
-pub type I2c = i2c::I2c<pac::I2C1, (PinScl, PinSda)>;
-pub type I2cBus<'a> = I2cProxy<'a, NullMutex<I2c>>;
-
-/// Pinout for icarus controller
+/// Hardware for icarus controller
 pub struct Icarus {
     /// Status LED 1
     pub stat1: gpio::PA4<Output<PushPull>>,
@@ -83,11 +74,7 @@ pub struct Icarus {
 
 impl Icarus {
     /// Construct an instance of the icarus hardware representation
-    /// This will *take* the core and device peripherals
-    pub fn new() -> Result<Icarus, IcarusError> {
-        let cp = hal::pac::CorePeripherals::take().unwrap();
-        let dp = hal::pac::Peripherals::take().unwrap();
-
+    pub fn new(cp: hal::pac::CorePeripherals, dp: hal::pac::Peripherals) -> Result<Icarus, IcarusError> {
         let mut flash = dp.FLASH.constrain();
         let mut rcc = dp.RCC.constrain();
 
@@ -187,6 +174,15 @@ impl Icarus {
                 delay,
             }
         )
+    }
+
+    /// Take the core and device peripherals returning an instance of the
+    /// initialized icarus hardware
+    pub fn take() -> Result<Icarus, IcarusError> {
+        let cp = hal::pac::CorePeripherals::take().unwrap();
+        let dp = hal::pac::Peripherals::take().unwrap();
+
+        Self::new(cp, dp)
     }
 }
 
