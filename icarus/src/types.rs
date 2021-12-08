@@ -8,6 +8,7 @@ use crate::hal::{
     pac,
     gpio::{self, Output, PushPull, OpenDrain},
     i2c,
+    serial::Serial,
 };
 
 use shared_bus::{I2cProxy, NullMutex};
@@ -24,3 +25,6 @@ pub type PinSda = gpio::PB7<gpio::AF4<OpenDrain>>;
 
 pub type I2c = i2c::I2c<pac::I2C1, (PinScl, PinSda)>;
 pub type I2cBus<'a> = I2cProxy<'a, NullMutex<I2c>>;
+
+pub type Serial1 = Serial<pac::USART1, (PinTx1, PinRx1)>;
+pub type Serial2 = Serial<pac::USART2, (PinTx2, PinRx2)>;

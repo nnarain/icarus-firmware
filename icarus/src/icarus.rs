@@ -11,7 +11,6 @@ use crate::{
     hal::{
         self,
         prelude::*,
-        pac,
         gpio::{self, Output, PushPull, Input},
         serial::Serial,
         i2c,
@@ -32,9 +31,9 @@ pub struct Icarus {
     pub stat2: gpio::PA5<Output<PushPull>>,
 
     /// Serial Port 1
-    pub usart1: Serial<pac::USART1, (PinTx1, PinRx1)>,
+    pub usart1: Serial1,
     /// Serial Port 2
-    pub usart2: Serial<pac::USART2, (PinTx2, PinRx2)>,
+    pub usart2: Serial2,
 
     /// I2C bus
     pub i2c: BusManagerSimple<I2c>,
