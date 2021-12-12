@@ -21,8 +21,18 @@ mod app {
         types::{PinStat1, PinStat2, Serial1},
     };
 
+    use icarus_comms::{
+        IcarusCommand,
+        ppp::{
+            ReceiveQueue,
+            spsc::{Queue, Producer, Consumer}
+        }
+    };
+
+    const SERIAL_QUEUE_SIZE: usize = 50;
+
     #[shared]
-    struct Shared{}
+    struct Shared {}
 
     #[local]
     struct Local {
@@ -30,9 +40,22 @@ mod app {
         stat2: PinStat2,
 
         serial1: Serial1,
+
+        serial_producer: Producer<'static, u8, SERIAL_QUEUE_SIZE>,
+        serial_consumer: Consumer<'static, u8, SERIAL_QUEUE_SIZE>,
+
+        cmd_recv_queue: ReceiveQueue<'static, IcarusCommand, 50, 3>,
+        cmd_consumer: Consumer<'static, IcarusCommand, 3>,
     }
 
-    #[init]
+    #[
+        init(
+            local = [
+                serial_queue: Queue<u8, SERIAL_QUEUE_SIZE> = Queue::new(),
+                cmd_queue: Queue<IcarusCommand, 3> = Queue::new()
+            ]
+        )
+     ]
     fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
         // Initialize hardware
         let hw = Icarus::new(cx.core, cx.device).unwrap();
@@ -45,45 +68,75 @@ mod app {
         let mut serial1 = hw.usart1;
         serial1.configure_interrupt(Event::ReceiveDataRegisterNotEmpty, Toggle::On);
 
+        // Queue for serial data
+        let (serial_producer, serial_consumer) = cx.local.serial_queue.split();
+
+        // Queue for commands
+        let (cmd_producer, cmd_consumer) = cx.local.cmd_queue.split();
+        let cmd_recv_queue = ReceiveQueue::new(cmd_producer);
+
         (
-            Shared{},
+            Shared {},
             Local{
                 stat1,
                 stat2,
 
                 serial1,
+
+                serial_producer,
+                serial_consumer,
+
+                cmd_recv_queue,
+                cmd_consumer,
             },
             init::Monotonics()
         )
     }
 
-    #[task(binds = USART1_EXTI25, local = [serial1])]
+    ///
+    /// Spawn tasks to handle incoming data and system state
+    ///
+    #[idle(local = [serial_consumer, cmd_recv_queue, cmd_consumer])]
+    fn idle(cx: idle::Context) -> ! {
+        loop {
+            // Update the receive queue with the byte read from the serial port
+            if let Some(byte) = cx.local.serial_consumer.dequeue() {
+                // TODO: Log error
+                cx.local.cmd_recv_queue.update(byte).unwrap();
+            }
+
+            // Dispatch commands
+            if let Some(cmd) = cx.local.cmd_consumer.dequeue() {
+                cmd_task::spawn(cmd).unwrap();
+            }
+        }
+    }
+
+    #[task(local = [stat2])]
+    fn cmd_task(cx: cmd_task::Context, cmd: IcarusCommand) {
+        match cmd {
+            IcarusCommand::LedSet(state) => {
+                if state {
+                    cx.local.stat2.set_high().unwrap();
+                }
+                else {
+                    cx.local.stat2.set_low().unwrap();
+                }
+            },
+        }
+    }
+
+    ///
+    /// Receive data from the serial port
+    ///
+    #[task(binds = USART1_EXTI25, local = [serial1, serial_producer])]
     fn serial_task(cx: serial_task::Context) {
         let serial = cx.local.serial1;
 
         if serial.is_event_triggered(Event::ReceiveDataRegisterNotEmpty) {
             if let Ok(byte) = serial.read() {
-                serial.write(byte).unwrap();
+                cx.local.serial_producer.enqueue(byte).unwrap();
             }
-        }
-    }
-
-    ///
-    /// Show activity by flashing the STAT LEDs
-    /// 
-    #[idle(local = [stat1, stat2])]
-    fn idle(cx: idle::Context) -> ! {
-        let stat1 = cx.local.stat1;
-        let stat2 = cx.local.stat2;
-
-        stat2.set_high().unwrap();
-
-        loop {
-            stat1.toggle().unwrap();
-            stat2.toggle().unwrap();
-
-            // TODO: Use `delay` here
-            cortex_m::asm::delay(8_000_000);
         }
     }
 }
