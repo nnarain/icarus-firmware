@@ -4,9 +4,6 @@
 // @author Natesh Narain <nnaraindev@gmail.com>
 // @date Nov 29 2021
 //
-
-use core::convert::TryInto;
-
 use crate::{
     hal::{
         self,
@@ -14,12 +11,13 @@ use crate::{
         gpio::{self, Output, PushPull, Input},
         serial::Serial,
         i2c,
-        delay::Delay,
         pwm,
     },
     types::*,
     IcarusError
 };
+
+use core::convert::TryInto;
 
 use shared_bus::BusManagerSimple;
 
@@ -66,14 +64,11 @@ pub struct Icarus {
     pub miso: gpio::PB14<Input>,
     /// SPI MOSI
     pub mosi: gpio::PB15<Input>,
-
-    /// Delay timer
-    pub delay: Delay,
 }
 
 impl Icarus {
     /// Construct an instance of the icarus hardware representation
-    pub fn new(cp: hal::pac::CorePeripherals, dp: hal::pac::Peripherals) -> Result<Icarus, IcarusError> {
+    pub fn new(dp: hal::pac::Peripherals) -> Result<Icarus, IcarusError> {
         let mut flash = dp.FLASH.constrain();
         let mut rcc = dp.RCC.constrain();
 
@@ -141,9 +136,6 @@ impl Icarus {
         let miso = gpiob.pb14;
         let mosi = gpiob.pb15;
 
-        // Delay
-        let delay = Delay::new(cp.SYST, clocks);
-
         Ok(
             Icarus {
                 stat1,
@@ -169,8 +161,6 @@ impl Icarus {
                 sck,
                 miso,
                 mosi,
-
-                delay,
             }
         )
     }
@@ -178,10 +168,10 @@ impl Icarus {
     /// Take the core and device peripherals returning an instance of the
     /// initialized icarus hardware
     pub fn take() -> Result<Icarus, IcarusError> {
-        let cp = hal::pac::CorePeripherals::take().unwrap();
-        let dp = hal::pac::Peripherals::take().unwrap();
+        // let cp = hal::pac::CorePeripherals::take().unwrap();
+        let device = hal::pac::Peripherals::take().unwrap();
 
-        Self::new(cp, dp)
+        Self::new(device)
     }
 }
 

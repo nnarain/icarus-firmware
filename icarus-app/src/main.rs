@@ -29,7 +29,12 @@ mod app {
         }
     };
 
+    use systick_monotonic::*;
+
     const SERIAL_QUEUE_SIZE: usize = 50;
+
+    #[monotonic(binds = SysTick, default = true)]
+    type IcarusMono = Systick<100>;
 
     #[shared]
     struct Shared {}
@@ -57,8 +62,11 @@ mod app {
         )
      ]
     fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
+        let systick = cx.core.SYST;
+        let mono = Systick::new(systick, 8_000_000);
+
         // Initialize hardware
-        let hw = Icarus::new(cx.core, cx.device).unwrap();
+        let hw = Icarus::new(cx.device).unwrap();
 
         // LED indicators
         let stat1 = hw.stat1;
@@ -75,6 +83,9 @@ mod app {
         let (cmd_producer, cmd_consumer) = cx.local.cmd_queue.split();
         let cmd_recv_queue = ReceiveQueue::new(cmd_producer);
 
+        // Spawn tasks
+        status_task::spawn_after(500.millis()).unwrap();
+
         (
             Shared {},
             Local{
@@ -89,7 +100,7 @@ mod app {
                 cmd_recv_queue,
                 cmd_consumer,
             },
-            init::Monotonics()
+            init::Monotonics(mono)
         )
     }
 
@@ -124,6 +135,15 @@ mod app {
                 }
             },
         }
+    }
+
+    ///
+    /// Show activity using the status LEDs
+    ///
+    #[task(local = [stat1])]
+    fn status_task(cx: status_task::Context) {
+        cx.local.stat1.toggle().unwrap();
+        status_task::spawn_after(500.millis()).unwrap();
     }
 
     ///

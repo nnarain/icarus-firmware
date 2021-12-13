@@ -303,6 +303,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fugit"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a100ebf2aadd97481fce0b1265ea470460578ac5441fd9d624e8170753f51a9f"
+
+[[package]]
 name = "generic-array"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -412,6 +418,7 @@ dependencies = [
  "icarus",
  "icarus-comms",
  "panic-halt",
+ "systick-monotonic",
 ]
 
 [[package]]
@@ -1073,6 +1080,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ef9c9bcbfeb596ce4da59b2c59736235f35dcd516f03958ea10834473224157"
 dependencies = [
  "nix 0.23.0",
+]
+
+[[package]]
+name = "systick-monotonic"
+version = "0.1.0-rc.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39ce021e54b01d56ef72384169f815845446364826fa4f85629e14177278ace4"
+dependencies = [
+ "cortex-m",
+ "fugit",
+ "rtic-monotonic",
 ]
 
 [[package]]
