@@ -10,9 +10,17 @@ This package is the main board support package (bsp). It defines the available h
 
 This is the application firmware package.
 
+**icarus-comms**
+
+Common communication interface
+
 **icarus-test**
 
 Test bed package. Mostly contains simple examples and experiments.
+
+**serial-ppp**
+
+Point-to-Point like communication
 
 **Example**
 

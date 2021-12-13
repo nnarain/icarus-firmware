@@ -1,0 +1,10 @@
+[package]
+name = "serial-ppp"
+version = "0.1.0"
+edition = "2021"
+description = "Point to Point like protocol for serial communication"
+
+[dependencies]
+bincode = {version = "2.0.0-alpha.1", default-features = false, features = ["derive"]}
+heapless = "0.7.8"
+crc = "2.0"

@@ -2,7 +2,11 @@
 members = [
     "icarus",
     "icarus-app",
+    "icarus-cli",
     "icarus-test",
+    "icarus-comms",
+
+    "serial-ppp",
 
     # External packages for patching crates.io
     "external/mpu6050"
