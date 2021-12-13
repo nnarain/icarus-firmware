@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 icarus-comms = {path = "../icarus-comms"}
-clap = "3.0.0-beta.5"
+clap = {version = "3.0.0-rc.4", features = ["derive"]}
+serialport = "4.0"

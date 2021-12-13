@@ -9,8 +9,7 @@ use crate::{reader::RingBufferReader, Error};
 use heapless::spsc::Producer;
 use bincode::Decode;
 
-/// Frame sync byte
-const SYNC: u8 = 0x7E;
+use crate::SYNC;
 
 /// State machine for receiving bytes
 enum RxState {

@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument('-p', '--port', required=True, help='Serial port')
 parser.add_argument('-b', '--baud', default=115200, type=int, help='Baud rate')
+parser.add_argument('-s', '--state', default=False, type=bool, help='Led state')
 
 args = parser.parse_args()
 

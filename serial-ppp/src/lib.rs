@@ -12,11 +12,14 @@
 mod error;
 mod reader;
 mod rx;
+mod tx;
 
 pub use error::Error;
 pub use rx::ReceiveQueue;
+pub use tx::Transmitter;
 
 pub use bincode;
 pub use heapless::spsc as spsc;
 
-
+/// Frame sync byte
+const SYNC: u8 = 0x7E;
