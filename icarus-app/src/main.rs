@@ -13,7 +13,7 @@ use panic_halt as _;
 mod app {
     use icarus::{
         prelude::*,
-        cortex_m,
+        // cortex_m,
         hal::{
             serial::Event,
             Toggle,
