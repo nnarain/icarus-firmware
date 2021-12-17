@@ -10,6 +10,15 @@ This package is the main board support package (bsp). It defines the available h
 
 This is the application firmware package.
 
+**icarus-cli**
+
+Command line tool for interacting with controller.
+
+```
+# Print log messages
+icarus-cli --port <port> log .\target\thumbv7em-none-eabihf\release\icarus-app
+```
+
 **icarus-comms**
 
 Common communication interface
