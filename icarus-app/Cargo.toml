@@ -12,4 +12,6 @@ icarus-comms = {path = "../icarus-comms"}
 cortex-m-rtic = "0.6.0-rc.4"
 systick-monotonic = "0.1.0-rc.2"
 panic-halt = "0.2"
+defmt = "0.3"
+defmt-bbq = "0.0.1"
 heapless = "0.7.8"

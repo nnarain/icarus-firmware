@@ -5,41 +5,34 @@
 // @date Dec 12 2021
 //
 
-use icarus_comms::{IcarusCommand, ppp::Transmitter};
-
-use std::error::Error;
+// use icarus_comms::{IcarusCommand, ppp::Transmitter};
+use icarus_cli::{
+    cli::{Args, Action},
+    actions,
+};
 
 use clap::Parser;
+use anyhow::{Result, Context};
 
-/// Command line tool for interacting with icarus controller
-#[derive(Parser, Debug)]
-#[clap(about, version, author)]
-struct Args {
-    /// Serial port Icarus is connected to
-    port: String,
-    /// Serial baud rate
-    #[clap(short = 'b', long = "baud", default_value_t = 115200)]
-    baud: u32,
-    /// Led state
-    #[clap(short = 's', long = "state")]
-    led_state: bool,
-}
+use std::time::Duration;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Setup serial port
-    let mut ser = serialport::new(args.port, args.baud).open()?;
+    let port = args.port.as_str();
+    let baud = args.baud;
+    let timeout = args.timeout;
 
-    // Write data to the serial port
-    let mut buf: [u8; 10] = [0; 10];
-    
-    let transmitter = Transmitter::default();
-    let len = transmitter.encode(&mut buf, IcarusCommand::LedSet(args.led_state)).unwrap();
+    let ser = serialport::new(port, baud)
+                .timeout(Duration::from_millis(timeout))
+                .open()
+                .with_context(|| format!("Failed to open serial port '{}'", port))?;
 
-    println!("{:?}", &buf[..len]);
-
-    ser.write(&mut buf[..len])?;
+    match args.action {
+        Action::Command => {},
+        Action::Monitor => {},
+        Action::Log(args) => actions::log::run(ser, args)?,
+    }
 
     Ok(())
 }

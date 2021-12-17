@@ -6,4 +6,5 @@ icarus-cli = "run --package icarus-cli --"
 runner = "gdb -q -x stm32.gdb"
 rustflags = [
   "-C", "link-arg=-Tlink.x",
+  "-C", "link-arg=-Tdefmt.x",
 ]
