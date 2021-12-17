@@ -8,5 +8,14 @@ parser.add_argument('-s', '--state', default=False, type=bool, help='Led state')
 
 args = parser.parse_args()
 
-with serial.Serial(args.port, args.baud, timeout=1) as ser:
-    ser.write(bytes([0x7E, 0x02, 0x00, 0x01, 0xFF, 0xFF]))
+# with serial.Serial(args.port, args.baud, timeout=1) as ser:
+#     ser.write(bytes([0x7E, 0x02, 0x00, 0x01, 0xFF, 0xFF]))
+
+try:
+    while True:
+        with serial.Serial(args.port, args.baud, timeout=1) as ser:
+            data = ser.read(size=1024)
+            if data:
+                print(data)
+except KeyboardInterrupt:
+    pass

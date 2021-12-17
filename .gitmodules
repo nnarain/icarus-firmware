@@ -1,3 +1,6 @@
 [submodule "external/mpu6050"]
 	path = external/mpu6050
 	url = https://github.com/juliangaal/mpu6050.git
+[submodule "external/defmt-bbq"]
+	path = external/defmt-bbq
+	url = https://github.com/nnarain/defmt-bbq.git

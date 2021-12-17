@@ -9,3 +9,6 @@ edition = "2021"
 icarus-comms = {path = "../icarus-comms"}
 clap = {version = "3.0.0-rc.4", features = ["derive"]}
 serialport = "4.0"
+defmt-decoder = { version = "=0.3.1", features = ["unstable"] }
+anyhow = "1.0"
+ctrlc = "3.2"

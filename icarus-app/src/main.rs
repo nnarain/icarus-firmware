@@ -15,10 +15,11 @@ mod app {
         prelude::*,
         // cortex_m,
         hal::{
+            block,
             serial::Event,
             Toggle,
         },
-        types::{PinStat1, PinStat2, Serial1},
+        types::{PinStat1, PinStat2, Serial1, Serial2},
     };
 
     use icarus_comms::{
@@ -41,10 +42,13 @@ mod app {
 
     #[local]
     struct Local {
+        logger: defmt_bbq::Consumer,
+
         stat1: PinStat1,
         stat2: PinStat2,
 
         serial1: Serial1,
+        serial2: Serial2,
 
         serial_producer: Producer<'static, u8, SERIAL_QUEUE_SIZE>,
         serial_consumer: Consumer<'static, u8, SERIAL_QUEUE_SIZE>,
@@ -62,6 +66,9 @@ mod app {
         )
      ]
     fn init(cx: init::Context) -> (Shared, Local, init::Monotonics) {
+        // Setup defmt logging
+        let logger = defmt_bbq::init().unwrap();
+
         let systick = cx.core.SYST;
         let mono = Systick::new(systick, 8_000_000);
 
@@ -79,20 +86,26 @@ mod app {
         // Queue for serial data
         let (serial_producer, serial_consumer) = cx.local.serial_queue.split();
 
+        // Serial 2 used as logger port
+        let serial2 = hw.usart2;
+
         // Queue for commands
         let (cmd_producer, cmd_consumer) = cx.local.cmd_queue.split();
         let cmd_recv_queue = ReceiveQueue::new(cmd_producer);
 
         // Spawn tasks
-        status_task::spawn_after(500.millis()).unwrap();
+        status_task::spawn().unwrap();
 
         (
             Shared {},
             Local{
+                logger,
+
                 stat1,
                 stat2,
 
                 serial1,
+                serial2,
 
                 serial_producer,
                 serial_consumer,
@@ -107,7 +120,7 @@ mod app {
     ///
     /// Spawn tasks to handle incoming data and system state
     ///
-    #[idle(local = [serial_consumer, cmd_recv_queue, cmd_consumer])]
+    #[idle(local = [serial_consumer, cmd_recv_queue, cmd_consumer, logger, serial2])]
     fn idle(cx: idle::Context) -> ! {
         loop {
             // Update the receive queue with the byte read from the serial port
@@ -120,9 +133,22 @@ mod app {
             if let Some(cmd) = cx.local.cmd_consumer.dequeue() {
                 cmd_task::spawn(cmd).unwrap();
             }
+
+            // Write logs to serial port 2
+            if let Ok(grant) = cx.local.logger.read() {
+                for byte in grant.buf() {
+                    block!(cx.local.serial2.write(*byte)).unwrap();
+                }
+
+                let glen = grant.len();
+                grant.release(glen);
+            }
         }
     }
 
+    ///
+    /// Process incoming commands
+    ///
     #[task(local = [stat2])]
     fn cmd_task(cx: cmd_task::Context, cmd: IcarusCommand) {
         match cmd {
@@ -142,6 +168,7 @@ mod app {
     ///
     #[task(local = [stat1])]
     fn status_task(cx: status_task::Context) {
+        defmt::println!("hello!");
         cx.local.stat1.toggle().unwrap();
         status_task::spawn_after(500.millis()).unwrap();
     }
