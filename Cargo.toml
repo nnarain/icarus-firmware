@@ -15,4 +15,4 @@ members = [
 
 [patch.crates-io]
 mpu6050 = {path = "external/mpu6050"}
-defmt-bbq = {path = "external/defmt-bbq"}
+# defmt-bbq = {path = "external/defmt-bbq"}
