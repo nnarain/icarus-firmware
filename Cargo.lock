@@ -91,9 +91,12 @@ checksum = "f8fe8f5a8a398345e52358e18ff07cc17a568fbca5c6f73873d3a62056309603"
 
 [[package]]
 name = "bbqueue"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8580c0ad5af69e6612244afdab66aa153f6a959c3bdcbb3251747be685441e58"
+checksum = "fd3baa8859d1a4c7411039a75c0599a4640ef1c9a8fc811e4325b00e6cfe0a55"
+dependencies = [
+ "defmt",
+]
 
 [[package]]
 name = "bincode"
@@ -327,6 +330,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "defmt-bbq"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c937dfd3aa385c0ceb497b513f23f9dea75c884dc12ac18cae2ccb7675c7a327"
+dependencies = [
+ "bbqueue",
+ "cortex-m",
+ "defmt",
+]
+
+[[package]]
 name = "defmt-decoder"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -528,7 +542,7 @@ version = "0.1.0"
 dependencies = [
  "cortex-m-rtic",
  "defmt",
- "defmt-bbq",
+ "defmt-bbq 0.1.0",
  "heapless",
  "icarus",
  "icarus-comms",

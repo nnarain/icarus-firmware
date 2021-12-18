@@ -42,7 +42,7 @@ mod app {
 
     #[local]
     struct Local {
-        logger: defmt_bbq::Consumer,
+        logger: defmt_bbq::DefmtConsumer,
 
         stat1: PinStat1,
         stat2: PinStat2,
