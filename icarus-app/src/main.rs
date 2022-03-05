@@ -70,7 +70,7 @@ mod app {
         let logger = defmt_bbq::init().unwrap();
 
         let systick = cx.core.SYST;
-        let mono = Systick::new(systick, 8_000_000);
+        let mono = Systick::new(systick, icarus::specs::SYSCLK_FREQ);
 
         // Initialize hardware
         let hw = Icarus::new(cx.device).unwrap();
@@ -168,7 +168,6 @@ mod app {
     ///
     #[task(local = [stat1])]
     fn status_task(cx: status_task::Context) {
-        defmt::println!("hello!");
         cx.local.stat1.toggle().unwrap();
         status_task::spawn_after(500.millis()).unwrap();
     }

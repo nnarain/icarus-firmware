@@ -4,3 +4,6 @@
 [submodule "external/defmt-bbq"]
 	path = external/defmt-bbq
 	url = https://github.com/nnarain/defmt-bbq.git
+[submodule "external/bmp388"]
+	path = external/bmp388
+	url = https://github.com/nnarain/bmp388.git
