@@ -12,6 +12,7 @@ use panic_halt as _;
 use icarus::{
     entry,
     prelude::*,
+    hal::{self, delay::Delay},
     sensors::imu,
     cortex_m::asm,
 };
@@ -20,10 +21,15 @@ use core::fmt::Write;
 
 #[entry]
 fn main() -> ! {
-    let icarus = Icarus::take().unwrap();
-    let i2c = icarus.i2c;
-    let mut delay = icarus.delay;
-    let mut serial = icarus.usart1;
+    let cp = hal::pac::CorePeripherals::take().unwrap();
+    let dp = hal::pac::Peripherals::take().unwrap();
+
+    let hw = Icarus::new(dp).unwrap();
+    let i2c = hw.i2c;
+    let clocks = hw.clocks;
+    let mut serial = hw.usart1;
+
+    let mut delay = Delay::new(cp.SYST, clocks);
 
     let mut imu = imu::init(i2c.acquire_i2c());
     imu.init(&mut delay).unwrap();

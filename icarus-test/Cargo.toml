@@ -9,3 +9,4 @@ forced-target = "thumbv7em-none-eabihf"
 [dependencies]
 icarus = {path = "../icarus"}
 panic-halt = "0.2"
+defmt = "0.3"

@@ -17,10 +17,10 @@ use icarus::{
 
 #[entry]
 fn main() -> ! {
-    let icarus = Icarus::take().unwrap();
+    let hw = Icarus::take().unwrap();
 
-    let mut stat1 = icarus.stat1;
-    let mut stat2 = icarus.stat2;
+    let mut stat1 = hw.stat1;
+    let mut stat2 = hw.stat2;
 
     stat2.toggle().unwrap();
 

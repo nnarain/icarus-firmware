@@ -21,7 +21,15 @@ pub use stm32f3xx_hal as hal;
 
 #[derive(Debug)]
 pub enum IcarusError {
-    HardwareInitError
+    HardwareInitError,
+    SensorInitError,
+    HseInitError,
+}
+
+pub mod specs {
+    pub const HSI_FREQ: u32 = 8_000_000;
+    pub const HSE_FREQ: u32 = 12_000_000;
+    pub const SYSCLK_FREQ: u32 = 48_000_000;
 }
 
 pub mod prelude {

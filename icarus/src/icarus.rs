@@ -12,6 +12,7 @@ use crate::{
         serial::Serial,
         i2c,
         pwm,
+        rcc::Clocks,
     },
     types::*,
     IcarusError
@@ -64,6 +65,9 @@ pub struct Icarus {
     pub miso: gpio::PB14<Input>,
     /// SPI MOSI
     pub mosi: gpio::PB15<Input>,
+
+    /// Clock
+    pub clocks: Clocks,
 }
 
 impl Icarus {
@@ -72,7 +76,17 @@ impl Icarus {
         let mut flash = dp.FLASH.constrain();
         let mut rcc = dp.RCC.constrain();
 
-        let clocks = rcc.cfgr.freeze(&mut flash.acr);
+        // A dedicated OSC package is used for the clock source
+        // Configure HSE bypass mode and set the incoming clock frequency
+        let clocks = rcc.cfgr
+            .bypass_hse()
+            .use_hse(crate::specs::HSE_FREQ.Hz().into())
+            .sysclk(48.MHz())
+            .freeze(&mut flash.acr);
+
+        if !clocks.usbclk_valid() {
+            return Err(IcarusError::HseInitError)
+        }
 
         let mut gpioa = dp.GPIOA.split(&mut rcc.ahb);
         let mut gpiob = dp.GPIOB.split(&mut rcc.ahb);
@@ -161,6 +175,8 @@ impl Icarus {
                 sck,
                 miso,
                 mosi,
+
+                clocks,
             }
         )
     }
@@ -168,7 +184,6 @@ impl Icarus {
     /// Take the core and device peripherals returning an instance of the
     /// initialized icarus hardware
     pub fn take() -> Result<Icarus, IcarusError> {
-        // let cp = hal::pac::CorePeripherals::take().unwrap();
         let device = hal::pac::Peripherals::take().unwrap();
 
         Self::new(device)
