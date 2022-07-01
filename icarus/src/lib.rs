@@ -7,6 +7,7 @@
 #![no_std]
 
 pub use esp32c3_hal as hal;
+use hal::gpio_types::Input;
 pub use smart_leds;
 
 pub mod prelude {
@@ -16,7 +17,7 @@ pub mod prelude {
 use crate::hal::{
     clock::ClockControl,
     gpio::*,
-    gpio_types::{Output, PushPull, Unknown},
+    gpio_types::{Floating, Output, PushPull, Unknown},
     pac::Peripherals,
     prelude::*,
     pulse_control::{Channel0, ClockSource},
@@ -46,6 +47,9 @@ pub struct Icarus {
     pub rtrctl4: Gpio4<Output<PushPull>>,
     // Rotor 3 Control
     pub rtrctl3: Gpio5<Output<PushPull>>,
+
+    // User Button
+    pub user_btn: Gpio9<Input<Floating>>,
 
     // Status LED
     pub stat: SmartLedsAdapter<Channel0, Gpio21<Unknown>, 25>,
@@ -83,6 +87,8 @@ impl Icarus {
             let rtrctl4 = io.pins.gpio4.into_push_pull_output();
             let rtrctl3 = io.pins.gpio5.into_push_pull_output();
 
+            let user_btn = io.pins.gpio9.into_floating_input();
+
             let pulse = PulseControl::new(
                 dp.RMT,
                 &mut system.peripheral_clock_control,
@@ -95,8 +101,6 @@ impl Icarus {
 
             let stat = <smartLedAdapter!(1)>::new(pulse.channel0, io.pins.gpio21);
 
-            // let stat = io.pins.gpio21.into_push_pull_output();
-
             let battery_sense = io.pins.gpio3.into_push_pull_output();
 
             let delay = Delay::new(&clocks);
@@ -108,6 +112,7 @@ impl Icarus {
                 rtrctl2,
                 rtrctl3,
                 rtrctl4,
+                user_btn,
                 stat,
                 battery_sense,
                 delay,
