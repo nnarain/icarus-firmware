@@ -16,7 +16,7 @@ use icarus::{prelude::*, Icarus};
 #[entry]
 fn main() -> ! {
     let hw = Icarus::take().unwrap();
-    let mut led = hw.led;
+    let mut led = hw.stat;
     let delay = hw.delay;
 
     loop {

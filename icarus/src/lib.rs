@@ -28,7 +28,29 @@ pub enum IcarusError {
 
 /// Icarus Hardware Interface
 pub struct Icarus {
-    pub led: Gpio10<Output<PushPull>>,
+    // TODO: I2C
+
+    // Drive 2 Enable
+    pub drv2_en: Gpio6<Output<PushPull>>,
+    // Rotor 2 Control
+    pub rtrctl2: Gpio7<Output<PushPull>>,
+    // Robot 1 Control
+    pub rtrctl1: Gpio8<Output<PushPull>>,
+
+    // Drive 1 Enable
+    pub drv1_en: Gpio10<Output<PushPull>>,
+    // Rotor 4 Control
+    pub rtrctl4: Gpio4<Output<PushPull>>,
+    // Rotor 3 Control
+    pub rtrctl3: Gpio5<Output<PushPull>>,
+
+    // Status LED
+    pub stat: Gpio21<Output<PushPull>>,
+
+    // Battery sense
+    pub battery_sense: Gpio3<Output<PushPull>>,
+
+    // Delay
     pub delay: Delay,
 }
 
@@ -50,11 +72,31 @@ impl Icarus {
 
             let io = IO::new(dp.GPIO, dp.IO_MUX);
 
-            let led = io.pins.gpio10.into_push_pull_output();
+            let drv2_en = io.pins.gpio6.into_push_pull_output();
+            let rtrctl2 = io.pins.gpio7.into_push_pull_output();
+            let rtrctl1 = io.pins.gpio8.into_push_pull_output();
+
+            let drv1_en = io.pins.gpio10.into_push_pull_output();
+            let rtrctl4 = io.pins.gpio4.into_push_pull_output();
+            let rtrctl3 = io.pins.gpio5.into_push_pull_output();
+
+            let stat = io.pins.gpio21.into_push_pull_output();
+
+            let battery_sense = io.pins.gpio3.into_push_pull_output();
 
             let delay = Delay::new(&clocks);
 
-            Ok(Icarus { led, delay })
+            Ok(Icarus {
+                drv1_en,
+                drv2_en,
+                rtrctl1,
+                rtrctl2,
+                rtrctl3,
+                rtrctl4,
+                stat,
+                battery_sense,
+                delay,
+            })
         } else {
             Err(IcarusError::HardwareInitError)
         }
