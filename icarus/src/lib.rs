@@ -7,6 +7,7 @@
 #![no_std]
 
 pub use esp32c3_hal as hal;
+pub use smart_leds;
 
 pub mod prelude {
     pub use crate::hal::prelude::*;
@@ -15,10 +16,12 @@ pub mod prelude {
 use crate::hal::{
     clock::ClockControl,
     gpio::*,
-    gpio_types::{Output, PushPull},
+    gpio_types::{Output, PushPull, Unknown},
     pac::Peripherals,
     prelude::*,
-    Delay, RtcCntl, Timer,
+    pulse_control::{Channel0, ClockSource},
+    utils::{smartLedAdapter, SmartLedsAdapter},
+    Delay, PulseControl, RtcCntl, Timer,
 };
 
 #[derive(Debug)]
@@ -45,7 +48,7 @@ pub struct Icarus {
     pub rtrctl3: Gpio5<Output<PushPull>>,
 
     // Status LED
-    pub stat: Gpio21<Output<PushPull>>,
+    pub stat: SmartLedsAdapter<Channel0, Gpio21<Unknown>, 25>,
 
     // Battery sense
     pub battery_sense: Gpio3<Output<PushPull>>,
@@ -57,7 +60,7 @@ pub struct Icarus {
 impl Icarus {
     pub fn take() -> Result<Icarus, IcarusError> {
         if let Some(dp) = Peripherals::take() {
-            let system = dp.SYSTEM.split();
+            let mut system = dp.SYSTEM.split();
             let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
 
             // Disable watchdog timers
@@ -80,7 +83,19 @@ impl Icarus {
             let rtrctl4 = io.pins.gpio4.into_push_pull_output();
             let rtrctl3 = io.pins.gpio5.into_push_pull_output();
 
-            let stat = io.pins.gpio21.into_push_pull_output();
+            let pulse = PulseControl::new(
+                dp.RMT,
+                &mut system.peripheral_clock_control,
+                ClockSource::APB,
+                0,
+                0,
+                0,
+            )
+            .map_err(|_| IcarusError::HardwareInitError)?;
+
+            let stat = <smartLedAdapter!(1)>::new(pulse.channel0, io.pins.gpio21);
+
+            // let stat = io.pins.gpio21.into_push_pull_output();
 
             let battery_sense = io.pins.gpio3.into_push_pull_output();
 
