@@ -1,0 +1,16 @@
+[package]
+name = "icarus-app-std"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+esp-idf-hal = "0.38.0"
+esp-idf-sys = { version = "0.31.4", features = ["native", "binstart"] }
+embedded-hal = "0.2"
+anyhow = "1.0"
+
+[build-dependencies]
+embuild = "0.29"
+anyhow = "1"
