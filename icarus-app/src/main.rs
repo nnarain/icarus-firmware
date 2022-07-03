@@ -6,43 +6,43 @@
 //
 #![no_std]
 #![no_main]
+#![feature(type_alias_impl_trait)]
 
 use panic_halt as _;
 
-use riscv_rt::entry;
+use embassy::{
+    executor::Spawner,
+    time::{Duration, Timer},
+};
+
+use embassy_esp::pac::Peripherals;
 
 use icarus::{
-    prelude::*,
-    smart_leds::{
-        brightness, gamma,
-        hsv::{hsv2rgb, Hsv},
-        SmartLedsWrite,
+    hal::{
+        gpio::Gpio10,
+        gpio_types::{Output, PushPull},
     },
+    prelude::*,
     Icarus,
 };
 
-#[entry]
-fn main() -> ! {
-    let hw = Icarus::take().unwrap();
-    let mut led = hw.stat;
-    let mut delay = hw.delay;
+#[embassy::task]
+async fn pong(mut led: Gpio10<Output<PushPull>>) {
+    loop {
+        led.toggle().unwrap();
+        Timer::after(Duration::from_millis(1000)).await;
+    }
+}
 
-    let mut color = Hsv {
-        hue: 0,
-        sat: 255,
-        val: 255,
-    };
-    let mut data;
+#[embassy::main]
+async fn main(spawner: Spawner, p: Peripherals) {
+    let hw = Icarus::init(p).unwrap();
+
+    let led = hw.drv1_en;
+
+    spawner.spawn(pong(led)).unwrap();
 
     loop {
-        for hue in 0..=255 {
-            color.hue = hue;
-            data = [hsv2rgb(color)];
-
-            led.write(brightness(gamma(data.iter().cloned()), 1))
-                .unwrap();
-
-            delay.delay_ms(20u8);
-        }
+        Timer::after(Duration::from_millis(100)).await;
     }
 }
