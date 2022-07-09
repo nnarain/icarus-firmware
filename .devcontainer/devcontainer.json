@@ -1,0 +1,4 @@
+{
+    "name": "Espressif IDF Rust",
+    "image": "espressif/idf-rust"
+}
