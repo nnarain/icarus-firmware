@@ -7,3 +7,9 @@
 [submodule "external/bmp388"]
 	path = external/bmp388
 	url = https://github.com/nnarain/bmp388.git
+[submodule "external/esp-hal"]
+	path = external/esp-hal
+	url = https://github.com/nnarain/esp-hal.git
+[submodule "external/embassy"]
+	path = external/embassy
+	url = https://github.com/nnarain/embassy.git

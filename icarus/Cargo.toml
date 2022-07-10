@@ -4,13 +4,12 @@ cargo-features = ["per-package-target"]
 name = "icarus"
 version = "0.1.0"
 edition = "2018"
-forced-target = "thumbv7em-none-eabihf"
+forced-target = "riscv32imc-unknown-none-elf"
 
 [dependencies]
-cortex-m = "0.7"
-cortex-m-rt = "0.6"
-stm32f3xx-hal = {version = "0.8", features = ["stm32f302x8", "rt"]}
+esp32c3-hal = {path = "../external/esp-hal/esp32c3-hal", version = "0.1"}
 
 shared-bus = "0.2.2"
 mpu6050 = "0.1.4"
 bmp388 = "0.1.0"
+smart-leds = "0.3"

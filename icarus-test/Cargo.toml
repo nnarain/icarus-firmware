@@ -4,9 +4,10 @@ cargo-features = ["per-package-target"]
 name = "icarus-test"
 version = "0.1.0"
 edition = "2018"
-forced-target = "thumbv7em-none-eabihf"
+forced-target = "riscv32imc-unknown-none-elf"
 
 [dependencies]
+riscv-rt = "0.8"
 icarus = {path = "../icarus"}
 panic-halt = "0.2"
 defmt = "0.3"
