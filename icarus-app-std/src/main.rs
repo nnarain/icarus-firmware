@@ -1,19 +1,9 @@
-//
-// main.rs
-//
-// @author Natesh Narain <nnaraindev@gmail.com>
-// @date Jul 03 2022
-//
+use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
-use esp_idf_hal::peripherals::Peripherals;
-use std::thread;
-use std::time::Duration;
-
-fn main() -> anyhow::Result<()> {
+fn main() {
+    // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,
+    // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
     esp_idf_sys::link_patches();
 
-    let p = Peripherals::take()?;
-    let mut led = p.pins.gpio10.into_output();
-
-    loop {}
+    println!("Hello, world!");
 }
