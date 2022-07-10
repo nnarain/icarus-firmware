@@ -14,6 +14,7 @@ use esp_idf_hal::{
     i2c,
     delay::FreeRtos,
 };
+use icarus_app_std::stat::{StatLed, StatColor};
 
 use embedded_hal::i2c::blocking::I2c;
 
@@ -21,6 +22,7 @@ use mpu6050::{Mpu6050, Mpu6050Error};
 
 use std::{borrow::Borrow, sync::Arc, time::Duration, thread};
 
+#[allow(unreachable_code)]
 fn main() -> anyhow::Result<()> {
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,
     // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
@@ -47,7 +49,8 @@ fn main() -> anyhow::Result<()> {
     // GPIO
     let user_button = p.pins.gpio9.into_input()?;
 
-    // TODO(nnarain): Stat LED
+    // Stat LED
+    let mut stat_led = StatLed::new(p.pins.gpio21, p.rmt.channel0)?;
 
     // Sensors
     let sda = p.pins.gpio1;
@@ -69,6 +72,8 @@ fn main() -> anyhow::Result<()> {
 
     // TODO...
 
+    let colors: [StatColor; 3] = [StatColor::Red, StatColor::Green, StatColor::Blue];
+    let mut c = 0;
 
     // Idle Task
     loop {
@@ -77,8 +82,11 @@ fn main() -> anyhow::Result<()> {
 
         println!("A: {:?}, G: {:?}", accel_data, gyro_data);
 
+        stat_led.update(colors[c])?;
+        c = (c + 1) % colors.len();
+
         // TODO(nnarain): Write state updates to serial port
-        thread::sleep(Duration::from_millis(10u64));
+        thread::sleep(Duration::from_millis(1000u64));
     }
 
     Ok(())
