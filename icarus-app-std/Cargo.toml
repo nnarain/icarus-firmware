@@ -16,11 +16,14 @@ opt-level = "z"
 pio = ["esp-idf-sys/pio"]
 
 [dependencies]
+icarus-wire = {path = "../icarus-wire"}
 esp-idf-sys = { version = "0.31.6", features = ["binstart"] }
 esp-idf-hal = "0.38"
 anyhow = "1"
 embedded-hal = "=1.0.0-alpha.8"
 mpu6050 = "0.1.4"
+#defmt = "0.3"
+#defmt-bbq = "0.1"
 
 [build-dependencies]
 embuild = "0.29"

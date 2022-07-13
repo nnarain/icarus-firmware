@@ -4,6 +4,9 @@
 // @author Natesh Narain <nnaraindev@gmail.com>
 // @date Dec 14 2021
 //
+
+use icarus_wire::{self, IcarusState};
+
 use anyhow::{Result, Context, anyhow, bail};
 use clap::Parser;
 
@@ -49,18 +52,18 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
     });
 
     // Parse the ELF file for defmt decoder
-    let path = PathBuf::from(elf);
-    let bytes = fs::read(path).with_context(|| format!("Failed to read ELF file '{}'", elf))?;
+    // let path = PathBuf::from(elf);
+    // let bytes = fs::read(path).with_context(|| format!("Failed to read ELF file '{}'", elf))?;
 
-    let table = Table::parse(&bytes)?.ok_or_else(|| anyhow!(".defmt data not found"))?;
-    let locs = table.get_locations(&bytes)?;
+    // let table = Table::parse(&bytes)?.ok_or_else(|| anyhow!(".defmt data not found"))?;
+    // let locs = table.get_locations(&bytes)?;
 
-    let locs = if table.indices().all(|idx| locs.contains_key(&(idx as u64))) {
-        Some(locs)
-    }
-    else {
-        None
-    };
+    // let locs = if table.indices().all(|idx| locs.contains_key(&(idx as u64))) {
+    //     Some(locs)
+    // }
+    // else {
+    //     None
+    // };
 
     // Setup signal handler
     let (tx, rx) = channel();
@@ -71,7 +74,7 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
 
     // Serial receive buffer
     let mut buf: Vec<u8> = vec![0; READ_BUF_SIZE];
-    let mut stream_decoder = table.new_stream_decoder();
+    // let mut stream_decoder = table.new_stream_decoder();
 
     loop {
         // Check if the user attempted to exit the program
@@ -82,18 +85,22 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
 
         match ser.read(buf.as_mut_slice()) {
             Ok(n) => {
-                stream_decoder.received(&buf[..n]);
+                // stream_decoder.received(&buf[..n]);
 
-                match stream_decoder.decode() {
-                    Ok(frame) => forward_to_logger(&frame, location_info(&locs, &frame, &current_dir)),
-                    Err(DecodeError::UnexpectedEof) => break,
-                    Err(DecodeError::Malformed) => match table.encoding().can_recover() {
-                        false => return Err(DecodeError::Malformed.into()),
-                        true => {
-                            eprintln!("Frame Malformed, recoverable");
-                            continue;
-                        }
-                    }
+                // match stream_decoder.decode() {
+                //     Ok(frame) => forward_to_logger(&frame, location_info(&locs, &frame, &current_dir)),
+                //     Err(DecodeError::UnexpectedEof) => break,
+                //     Err(DecodeError::Malformed) => match table.encoding().can_recover() {
+                //         false => return Err(DecodeError::Malformed.into()),
+                //         true => {
+                //             eprintln!("Frame Malformed, recoverable");
+                //             continue;
+                //         }
+                //     }
+                // }
+                match icarus_wire::decode::<IcarusState>(&mut buf[..n]) {
+                    Ok((state, unused)) => println!("{:?}", state),
+                    Err(e) => eprintln!("{:?}", e),
                 }
             },
             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
