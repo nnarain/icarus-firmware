@@ -20,6 +20,10 @@ This package is the main board support package (bsp) for `bare-metal` firmware. 
 
 `std` firmware package.
 
+**icarus-wire**
+
+Communication interface for controller
+
 **icarus-cli**
 
 Command line tool for interacting with controller.
