@@ -5,7 +5,7 @@
 // @date Dec 14 2021
 //
 
-use icarus_wire::{self, IcarusState};
+use icarus_wire::{self, IcarusState, IcarusCommand};
 
 use anyhow::{Result, Context, anyhow, bail};
 use clap::Parser;
@@ -98,14 +98,37 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
                 //         }
                 //     }
                 // }
-                match icarus_wire::decode::<IcarusState>(&mut buf[..n]) {
-                    Ok((state, unused)) => println!("{:?}", state),
-                    Err(e) => eprintln!("{:?}", e),
+
+                let mut remaining = Some(&mut buf[..n]);
+
+                loop {
+                    remaining = if let Some(bytes) = remaining {
+                        match icarus_wire::decode::<IcarusState>(bytes) {
+                            Ok((state, unused)) => {
+                                println!("{:?}", state);
+                                Some(unused)
+                            },
+                            Err(_) => None,
+                        }
+                    }
+                    else {
+                        break;
+                    }
                 }
             },
             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
             Err(e) => bail!("{:?}", e),
         }
+
+        let mut send_buf: [u8; 64] = [0; 64];
+        let used_buf = icarus_wire::encode(&IcarusCommand::CycleLed, &mut send_buf).expect("Failed to encode");
+
+        // ser.write_all(used_buf).expect("Failed to send");
+        println!("Sending");
+        // if let Ok(n) = ser.write(used_buf) {
+        //     println!("sent: {}", n);
+        // }
+        // ser.w
     }
 
     Ok(())

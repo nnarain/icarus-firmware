@@ -16,6 +16,8 @@ use anyhow::{Result, Context};
 
 use std::time::Duration;
 
+use std::io::Write;
+
 fn main() -> Result<()> {
     let args = Args::parse();
 
@@ -23,15 +25,22 @@ fn main() -> Result<()> {
     let baud = args.baud;
     let timeout = args.timeout;
 
-    let ser = serialport::new(port, baud)
+    let mut ser = serialport::new(port, baud)
+                .flow_control(serialport::FlowControl::None)
                 .timeout(Duration::from_millis(timeout))
                 .open()
                 .with_context(|| format!("Failed to open serial port '{}'", port))?;
 
-    match args.action {
-        Action::Command => {},
-        Action::Monitor => {},
-        Action::Log(args) => actions::log::run(ser, args)?,
+    // match args.action {
+    //     Action::Command => {},
+    //     Action::Monitor => {},
+    //     Action::Log(args) => actions::log::run(ser, args)?,
+    // }
+
+    println!("sending");
+    let buf: [u8; 64] = [0; 64];
+    if let Ok(n) = ser.write(&buf) {
+        print!("{}", n);
     }
 
     Ok(())

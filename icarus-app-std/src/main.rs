@@ -6,7 +6,7 @@
 //
 
 use icarus_app_std::stat::{StatLed, StatColor};
-use icarus_wire::{self, IcarusState, ImuRaw};
+use icarus_wire::{self, IcarusState, IcarusCommand, ImuRaw};
 
 use esp_idf_hal::{
     prelude::*,
@@ -18,12 +18,10 @@ use esp_idf_hal::{
 
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
-use embedded_hal::i2c::blocking::I2c;
 
-use mpu6050::{Mpu6050, Mpu6050Error};
+use mpu6050::Mpu6050;
 
 use std::{
-    borrow::Borrow,
     sync::{
         Arc,
         mpsc::channel,
@@ -88,8 +86,41 @@ fn main() -> anyhow::Result<()> {
     // -----------------------------------------------------------------------------------------------------------------
 
     // Setup task queues
+    let (cmd_sender, cmd_reciever) = channel::<IcarusCommand>();
+
     let (state_sender, state_reciever) = channel::<IcarusState>();
     let imu_state_sender = state_sender.clone();
+
+    let (led_sender, led_reciever) = channel::<IcarusCommand>();
+
+    // Spawn command task
+    thread::spawn(move || {
+        let mut read_buf: [u8; 64] = [0; 64];
+        loop {
+            match std::io::stdin().read(&mut read_buf) {
+                Ok(n) => {
+                    let mut remaining = Some(&mut read_buf[..n]);
+
+                    loop {
+                        remaining = if let Some(bytes) = remaining {
+                            match icarus_wire::decode::<IcarusCommand>(bytes) {
+                                Ok((cmd, unused)) => {
+                                    cmd_sender.send(cmd).expect("Failed to send recieved command on channel");
+                                    Some(unused)
+                                },
+                                Err(_) => None,
+                            }
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                },
+                Err(_) => {},
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    });
 
     // Spawn sensors task
     thread::spawn(move || {
@@ -120,10 +151,17 @@ fn main() -> anyhow::Result<()> {
         let mut c = 0;
 
         loop {
-            stat_led.update(colors[c]).unwrap();
-            c = (c + 1) % colors.len();
+            // stat_led.update(colors[c]).unwrap();
+            // c = (c + 1) % colors.len();
 
-            thread::sleep(Duration::from_millis(1000));
+            // thread::sleep(Duration::from_millis(1000));
+            match led_reciever.recv() {
+                Ok(cmd) => {
+                    stat_led.update(colors[c]).unwrap();
+                    c = (c + 1) % colors.len();
+                },
+                Err(_) => {}
+            }
         }
     });
 
@@ -145,6 +183,18 @@ fn main() -> anyhow::Result<()> {
                 Err(_) => {
                     break;
                 },
+            }
+        }
+
+        // Recieve commands and dispatch to tasks
+        loop {
+            match cmd_reciever.try_recv() {
+                Ok(cmd) => {
+                    match cmd {
+                        IcarusCommand::CycleLed => led_sender.send(cmd.clone()).unwrap(),
+                    }
+                },
+                Err(_) => break,
             }
         }
 
