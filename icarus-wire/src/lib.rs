@@ -19,9 +19,8 @@ pub struct ImuRaw {
 }
 
 /// IMU calibration offset
-pub struct ImuCalibrationOffset {
+pub struct ImuCalibrationOffset {}
 
-}
 /// Data reporting channels for Icarus
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum IcarusState<'a> {

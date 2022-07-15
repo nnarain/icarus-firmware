@@ -30,8 +30,8 @@ pub struct Args {
     /// Verbosity level
     #[clap(short = 'v', long = "verbose")]
     verbose: bool,
-    // #[clap(short = 's', long = "show-skipped-frames")]
-    // show_skipped_frames: bool,
+    #[clap(short = 's', long = "show-skipped-frames")]
+    show_skipped_frames: bool,
 }
 
 const READ_BUF_SIZE: usize = 1024;
@@ -41,7 +41,7 @@ const READ_BUF_SIZE: usize = 1024;
 pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
     let elf = args.elf.as_str();
     let verbose = args.verbose;
-    // let show_skipped_frames = args.show_skipped_frames;
+    let show_skipped_frames = args.show_skipped_frames;
 
     defmt_decoder::log::init_logger(verbose, move |metadata| {
         if !verbose {
@@ -53,18 +53,18 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
     });
 
     // Parse the ELF file for defmt decoder
-    // let path = PathBuf::from(elf);
-    // let bytes = fs::read(path).with_context(|| format!("Failed to read ELF file '{}'", elf))?;
+    let path = PathBuf::from(elf);
+    let bytes = fs::read(path).with_context(|| format!("Failed to read ELF file '{}'", elf))?;
 
-    // let table = Table::parse(&bytes)?.ok_or_else(|| anyhow!(".defmt data not found"))?;
-    // let locs = table.get_locations(&bytes)?;
+    let table = Table::parse(&bytes)?.ok_or_else(|| anyhow!(".defmt data not found"))?;
+    let locs = table.get_locations(&bytes)?;
 
-    // let locs = if table.indices().all(|idx| locs.contains_key(&(idx as u64))) {
-    //     Some(locs)
-    // }
-    // else {
-    //     None
-    // };
+    let locs = if table.indices().all(|idx| locs.contains_key(&(idx as u64))) {
+        Some(locs)
+    }
+    else {
+        None
+    };
 
     // Setup signal handler
     let (tx, rx) = channel();
@@ -75,7 +75,7 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
 
     // Serial receive buffer
     let mut buf: Vec<u8> = vec![0; READ_BUF_SIZE];
-    // let mut stream_decoder = table.new_stream_decoder();
+    let mut stream_decoder = table.new_stream_decoder();
 
     loop {
         // Check if the user attempted to exit the program
@@ -106,7 +106,25 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
                     remaining = if let Some(bytes) = remaining {
                         match icarus_wire::decode::<IcarusState>(bytes) {
                             Ok((state, unused)) => {
-                                println!("{:?}", state);
+                                if let IcarusState::Log(chunk) = state {
+                                    println!("got log chunk");
+                                    stream_decoder.received(chunk);
+                                    match stream_decoder.decode() {
+                                        Ok(frame) => forward_to_logger(&frame, location_info(&locs, &frame, &current_dir)),
+                                        Err(DecodeError::UnexpectedEof) => break,
+                                        Err(DecodeError::Malformed) => match table.encoding().can_recover() {
+                                            false => return Err(DecodeError::Malformed.into()),
+                                            true => {
+                                                eprintln!("Frame Malformed, recoverable");
+                                                // continue;
+                                            }
+                                        }
+                                    }
+                                }
+                                else {
+                                    println!("{:?}", state);
+                                }
+                                // unused.
                                 Some(unused)
                             },
                             Err(_) => None,

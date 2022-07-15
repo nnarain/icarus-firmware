@@ -41,12 +41,13 @@ fn main() -> anyhow::Result<()> {
     // Setup Logging
     // -----------------------------------------------------------------------------------------------------------------
 
-    // TODO(nnarain): This library depends on cortex-m crate
-    // let mut logger = defmt_bbq::init().unwrap();
+    let mut logger = defmt_bbq::init().unwrap();
 
     // -----------------------------------------------------------------------------------------------------------------
     // Hardware Init
     // -----------------------------------------------------------------------------------------------------------------
+    // defmt::info!("Setting up hardware");
+
     let mut p = Peripherals::take().unwrap();
 
     // Rotor control
@@ -90,6 +91,7 @@ fn main() -> anyhow::Result<()> {
 
     let (state_sender, state_reciever) = channel::<IcarusState>();
     let imu_state_sender = state_sender.clone();
+    let log_state_sender = state_sender.clone();
 
     let (led_sender, led_reciever) = channel::<IcarusCommand>();
 
@@ -97,6 +99,7 @@ fn main() -> anyhow::Result<()> {
     thread::spawn(move || {
         let mut read_buf: [u8; 64] = [0; 64];
         loop {
+            // TODO: Clean up
             match std::io::stdin().read(&mut read_buf) {
                 Ok(n) => {
                     let mut remaining = Some(&mut read_buf[..n]);
@@ -148,22 +151,26 @@ fn main() -> anyhow::Result<()> {
     // Spawn LED task
     thread::spawn(move || {
         let colors: [StatColor; 3] = [StatColor::Red, StatColor::Green, StatColor::Blue];
-        let mut c = 0;
 
-        loop {
-            // stat_led.update(colors[c]).unwrap();
-            // c = (c + 1) % colors.len();
-
-            // thread::sleep(Duration::from_millis(1000));
-            match led_reciever.recv() {
-                Ok(cmd) => {
-                    stat_led.update(colors[c]).unwrap();
-                    c = (c + 1) % colors.len();
-                },
-                Err(_) => {}
-            }
+        for c in colors.iter().cycle() {
+            stat_led.update(*c).unwrap();
+            thread::sleep(Duration::from_millis(1000));
         }
     });
+
+    // Spawn logger task
+    thread::spawn(move || {
+        loop {
+            defmt::info!("Info!");
+            // defmt::warn!("Warn!");
+            // defmt::error!("Error!");
+
+            thread::sleep(Duration::from_millis(2000));
+        }
+    });
+
+
+    defmt::info!("Starting IDLE task");
 
     let mut send_buf: [u8; 64] = [0; 64];
 
@@ -175,7 +182,6 @@ fn main() -> anyhow::Result<()> {
                 Ok(state) => {
                     let used_buf = icarus_wire::encode(&state, &mut send_buf)?;
                     std::io::stdout().write_all(&used_buf)?;
-
                     std::io::stdout().flush()?;
                     // TODO(nnarain): Why is this needed?
                     println!("\n\r");
@@ -186,13 +192,31 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
+        // Write log chunks to serial port
+        match logger.read() {
+            Ok(grant) => {
+                let buf = grant.buf();
+                let log_chunk = IcarusState::Log(buf);
+
+                let used_buf = icarus_wire::encode(&log_chunk, &mut send_buf)?;
+                std::io::stdout().write_all(&used_buf)?;
+                std::io::stdout().flush()?;
+                // TODO(nnarain): Why is this needed?
+                println!("\n\r");
+
+                let len = grant.len();
+                grant.release(len);
+            },
+            Err(e) => println!("{:?}", e),
+        }
+
         // Recieve commands and dispatch to tasks
         loop {
             match cmd_reciever.try_recv() {
                 Ok(cmd) => {
-                    match cmd {
-                        IcarusCommand::CycleLed => led_sender.send(cmd.clone()).unwrap(),
-                    }
+                    // match cmd {
+                    //     IcarusCommand::CycleLed => led_sender.send(cmd.clone()).unwrap(),
+                    // }
                 },
                 Err(_) => break,
             }
