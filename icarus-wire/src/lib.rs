@@ -18,6 +18,12 @@ pub struct ImuRaw {
     pub temp: f32,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct BarometerRaw {
+    pub altitude: f32,
+    pub temp: f32,
+}
+
 /// IMU calibration offset
 pub struct ImuCalibrationOffset {}
 
@@ -26,6 +32,7 @@ pub struct ImuCalibrationOffset {}
 pub enum IcarusState<'a> {
     Log(&'a [u8]),
     ImuRaw(ImuRaw),
+    BarometerRaw(BarometerRaw)
 }
 
 /// Icarus command channels
