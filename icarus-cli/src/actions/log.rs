@@ -107,7 +107,6 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
                         match icarus_wire::decode::<IcarusState>(bytes) {
                             Ok((state, unused)) => {
                                 if let IcarusState::Log(chunk) = state {
-                                    println!("got log chunk");
                                     stream_decoder.received(chunk);
                                     match stream_decoder.decode() {
                                         Ok(frame) => forward_to_logger(&frame, location_info(&locs, &frame, &current_dir)),

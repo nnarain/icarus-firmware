@@ -41,14 +41,14 @@ fn main() -> anyhow::Result<()> {
     // Setup Logging
     // -----------------------------------------------------------------------------------------------------------------
 
-    let mut logger = defmt_bbq::init().unwrap();
+    // let mut logger = defmt_bbq::init().unwrap();
 
     // -----------------------------------------------------------------------------------------------------------------
     // Hardware Init
     // -----------------------------------------------------------------------------------------------------------------
     // defmt::info!("Setting up hardware");
 
-    let mut p = Peripherals::take().unwrap();
+    let p = Peripherals::take().unwrap();
 
     // Rotor control
     let _drv1_en = p.pins.gpio10.into_output()?;
@@ -91,9 +91,6 @@ fn main() -> anyhow::Result<()> {
 
     let (state_sender, state_reciever) = channel::<IcarusState>();
     let imu_state_sender = state_sender.clone();
-    let log_state_sender = state_sender.clone();
-
-    let (led_sender, led_reciever) = channel::<IcarusCommand>();
 
     // Spawn command task
     thread::spawn(move || {
@@ -158,17 +155,6 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    // Spawn logger task
-    thread::spawn(move || {
-        loop {
-            defmt::info!("Info!");
-            // defmt::warn!("Warn!");
-            // defmt::error!("Error!");
-
-            thread::sleep(Duration::from_millis(2000));
-        }
-    });
-
 
     defmt::info!("Starting IDLE task");
 
@@ -192,28 +178,10 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
-        // Write log chunks to serial port
-        match logger.read() {
-            Ok(grant) => {
-                let buf = grant.buf();
-                let log_chunk = IcarusState::Log(buf);
-
-                let used_buf = icarus_wire::encode(&log_chunk, &mut send_buf)?;
-                std::io::stdout().write_all(&used_buf)?;
-                std::io::stdout().flush()?;
-                // TODO(nnarain): Why is this needed?
-                println!("\n\r");
-
-                let len = grant.len();
-                grant.release(len);
-            },
-            Err(e) => println!("{:?}", e),
-        }
-
         // Recieve commands and dispatch to tasks
         loop {
             match cmd_reciever.try_recv() {
-                Ok(cmd) => {
+                Ok(_cmd) => {
                     // match cmd {
                     //     IcarusCommand::CycleLed => led_sender.send(cmd.clone()).unwrap(),
                     // }
@@ -221,6 +189,24 @@ fn main() -> anyhow::Result<()> {
                 Err(_) => break,
             }
         }
+
+        // Write log chunks to serial port
+        // match logger.read() {
+        //     Ok(grant) => {
+        //         let buf = grant.buf();
+        //         let log_chunk = IcarusState::Log(buf);
+
+        //         let used_buf = icarus_wire::encode(&log_chunk, &mut send_buf)?;
+        //         std::io::stdout().write_all(&used_buf)?;
+        //         std::io::stdout().flush()?;
+        //         // TODO(nnarain): Why is this needed?
+        //         println!("\n\r");
+
+        //         let len = grant.len();
+        //         grant.release(len);
+        //     },
+        //     Err(e) => println!("{:?}", e),
+        // }
 
         thread::sleep(Duration::from_millis(10));
     }
