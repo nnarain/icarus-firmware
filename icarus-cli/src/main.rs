@@ -16,8 +16,6 @@ use anyhow::{Result, Context};
 
 use std::time::Duration;
 
-use std::io::Write;
-
 fn main() -> Result<()> {
     let args = Args::parse();
 
@@ -25,7 +23,7 @@ fn main() -> Result<()> {
     let baud = args.baud;
     let timeout = args.timeout;
 
-    let mut ser = serialport::new(port, baud)
+    let ser = serialport::new(port, baud)
                 .flow_control(serialport::FlowControl::None)
                 .timeout(Duration::from_millis(timeout))
                 .open()

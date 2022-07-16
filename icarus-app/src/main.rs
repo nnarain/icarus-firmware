@@ -21,6 +21,7 @@ use icarus::{
     hal::{
         gpio::Gpio10,
         gpio_types::{Output, PushPull},
+        UsbSerialJtag,
     },
     prelude::*,
     Icarus,
@@ -36,6 +37,7 @@ async fn pong(mut led: Gpio10<Output<PushPull>>) {
 
 #[embassy::main]
 async fn main(spawner: Spawner, p: Peripherals) {
+
     let hw = Icarus::init(p).unwrap();
 
     let led = hw.drv1_en;
@@ -43,6 +45,6 @@ async fn main(spawner: Spawner, p: Peripherals) {
     spawner.spawn(pong(led)).unwrap();
 
     loop {
-        Timer::after(Duration::from_millis(100)).await;
+        Timer::after(Duration::from_millis(1000)).await;
     }
 }
