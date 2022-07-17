@@ -141,7 +141,7 @@ fn main() -> anyhow::Result<()> {
                 imu_state_sender.send(imu_raw).expect("Failed to send IMU data");
             }
 
-            thread::sleep(Duration::from_millis(1000));
+            thread::sleep(Duration::from_millis(20));
         }
     });
 
