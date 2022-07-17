@@ -5,7 +5,10 @@
 // @date Jul 10 2022
 //
 
-use icarus_app_std::stat::{StatLed, StatColor};
+use icarus_app_std::{
+    ImuCalibrationOffset,
+    stat::{StatLed, StatColor},
+};
 use icarus_wire::{self, IcarusState, IcarusCommand, ImuRaw};
 
 use esp_idf_hal::{
@@ -124,6 +127,13 @@ fn main() -> anyhow::Result<()> {
 
     // Spawn sensors task
     thread::spawn(move || {
+        let offsets = calibrate_imu(500, 20, || {
+            let a = imu.get_acc().unwrap();
+            let g = imu.get_gyro().unwrap();
+
+            ((a.x, a.y, a.z), (g.x, g.y, g.z))
+        });
+
         loop {
             let accel = imu.get_acc();
             let gyro = imu.get_gyro();
@@ -132,8 +142,16 @@ fn main() -> anyhow::Result<()> {
             if let (Ok(accel), Ok(gyro), Ok(temp)) = (accel, gyro, temp) {
                 // TODO: Actual state estimation
                 let imu_raw = ImuRaw {
-                    accel: (accel.x, accel.y, accel.z),
-                    gyro: (gyro.x, gyro.y, gyro.z),
+                    accel: (
+                        accel.x - offsets.ax_offset,
+                        accel.y - offsets.ay_offset,
+                        accel.z - offsets.az_offset,
+                    ),
+                    gyro: (
+                        gyro.x - offsets.gx_offset,
+                        gyro.y - offsets.gy_offset,
+                        gyro.z - offsets.gz_offset,
+                    ),
                     temp,
                 };
                 let imu_raw = IcarusState::ImuRaw(imu_raw);
@@ -212,4 +230,54 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+/// Sample accelerometer and gyro data and calculate the device specific offset
+fn calibrate_imu<F>(samples: usize, delay_ms: u64, mut f: F) -> ImuCalibrationOffset
+    where F: FnMut() -> ((f32, f32, f32), (f32, f32, f32)) {
+
+    let (a, g) = f();
+
+    // Min / Max values for each axis on the accelerometer and the gyro
+    let mut ax_min: f32 = a.0;
+    let mut ax_max: f32 = a.0;
+    let mut ay_min: f32 = a.1;
+    let mut ay_max: f32 = a.1;
+    let mut az_min: f32 = a.2;
+    let mut az_max: f32 = a.2;
+    let mut gx_min: f32 = g.0;
+    let mut gx_max: f32 = g.0;
+    let mut gy_min: f32 = g.1;
+    let mut gy_max: f32 = g.1;
+    let mut gz_min: f32 = g.2;
+    let mut gz_max: f32 = g.2;
+
+    for _ in 0..samples {
+        let (a, g) = f();
+
+        ax_min = ax_min.min(a.0);
+        ax_max = ax_max.max(a.0);
+        ay_min = ay_min.min(a.1);
+        ay_max = ay_max.max(a.1);
+        az_min = az_min.min(a.2);
+        az_max = az_max.max(a.2);
+
+        gx_min = gx_min.min(g.0);
+        gx_max = gx_max.max(g.0);
+        gy_min = gy_min.min(g.1);
+        gy_max = gy_max.max(g.1);
+        gz_min = gz_min.min(g.2);
+        gz_max = gz_max.max(g.2);
+
+        thread::sleep(Duration::from_millis(delay_ms))
+    }
+
+    ImuCalibrationOffset {
+        ax_offset: (ax_max - ax_min) / 2.0 + ax_min,
+        ay_offset: (ay_max - ay_min) / 2.0 + ay_min,
+        az_offset: (az_max - az_min) / 2.0 + az_min,
+        gx_offset: (gx_max - gx_min) / 2.0 + gx_min,
+        gy_offset: (gy_max - gy_min) / 2.0 + gy_min,
+        gz_offset: (gz_max - gz_min) / 2.0 + gz_min,
+    }
 }
