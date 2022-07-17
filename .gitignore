@@ -1,3 +1,4 @@
 target/
 **/.embuild/
 *.csv
+*.html
