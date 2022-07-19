@@ -82,10 +82,10 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
                                             gy: imu.gyro.1,
                                             gz: imu.gyro.2,
                                         };
-
                                         csv_writer.serialize(row)?;
                                     },
                                     IcarusState::BarometerRaw(_) => {},
+                                    IcarusState::Battery(state) => println!("{:?}", state),
                                     _ => {}
                                 }
                                 // unused.

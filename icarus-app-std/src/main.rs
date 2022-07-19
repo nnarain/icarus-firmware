@@ -9,15 +9,17 @@ use icarus_app_std::{
     ImuCalibrationOffset,
     stat::{StatLed, StatColor},
 };
-use icarus_wire::{self, IcarusState, IcarusCommand, ImuRaw};
+use icarus_wire::{self, IcarusState, IcarusCommand, ImuRaw, BatteryState};
 
 use esp_idf_hal::{
     prelude::*,
     peripherals::Peripherals,
+    adc::{self, Adc, Analog, Atten11dB},
     ledc::*,
     i2c,
     delay::FreeRtos,
 };
+use embedded_hal_0_2::adc::{OneShot, Channel as _};
 
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
@@ -27,9 +29,9 @@ use mpu6050::Mpu6050;
 use std::{
     sync::{
         Arc,
-        mpsc::channel,
+        mpsc::{channel, Receiver},
     },
-    time::Duration,
+    time::{Duration, SystemTime},
     thread,
     io::{Write, Read}
 };
@@ -85,6 +87,12 @@ fn main() -> anyhow::Result<()> {
 
     // TODO(nnarain): Barometer
 
+    // Battery sense
+    let adc_config = adc::config::Config::default();
+    let mut adc_channel = adc::PoweredAdc::new(p.adc1, adc_config)?;
+    
+    let mut battery_sense = p.pins.gpio3.into_analog_atten_11db()?;
+
     // -----------------------------------------------------------------------------------------------------------------
     // Tasks
     // -----------------------------------------------------------------------------------------------------------------
@@ -94,6 +102,8 @@ fn main() -> anyhow::Result<()> {
 
     let (state_sender, state_reciever) = channel::<IcarusState>();
     let imu_state_sender = state_sender.clone();
+
+    let (battery_sender, battery_reciever) = channel::<IcarusState>();
 
     // Spawn command task
     thread::spawn(move || {
@@ -134,7 +144,10 @@ fn main() -> anyhow::Result<()> {
             ((a.x, a.y, a.z), (g.x, g.y, g.z))
         });
 
+        let mut battery_last_read_time = SystemTime::now();
+
         loop {
+            // Read IMU data
             let accel = imu.get_acc();
             let gyro = imu.get_gyro();
             let temp = imu.get_temp();
@@ -159,6 +172,21 @@ fn main() -> anyhow::Result<()> {
                 imu_state_sender.send(imu_raw).expect("Failed to send IMU data");
             }
 
+            // Read battery voltage every 1000ms and report to host
+            let now = SystemTime::now();
+            let should_read_battery = now
+                                        .duration_since(battery_last_read_time)
+                                        .map(|e| e >= Duration::from_millis(1000));
+            if let Ok(true) = should_read_battery {
+                let voltage = nb::block!(adc_channel.read(&mut battery_sense));
+                battery_last_read_time = now;
+
+                if let Ok(voltage) = voltage {
+                    let battery_state = BatteryState {voltage, charge_complete: false};
+                    battery_sender.send(IcarusState::Battery(battery_state)).expect("Failed to send battery state");
+                }
+            }
+
             thread::sleep(Duration::from_millis(20));
         }
     });
@@ -181,30 +209,20 @@ fn main() -> anyhow::Result<()> {
     // Idle Task
     loop {
         // Write all recieved state to serial port
-        loop {
-            match state_reciever.try_recv() {
-                Ok(state) => {
-                    let used_buf = icarus_wire::encode(&state, &mut send_buf)?;
-                    std::io::stdout().write_all(&used_buf)?;
-                    std::io::stdout().flush()?;
-                    // TODO(nnarain): Why is this needed?
-                    println!("\n\r");
-                },
-                Err(_) => {
-                    break;
-                },
-            }
+        let all_recv = state_reciever.try_iter().chain(battery_reciever.try_iter());
+
+        for state in all_recv {
+            let used_buf = icarus_wire::encode(&state, &mut send_buf)?;
+            std::io::stdout().write_all(&used_buf)?;
+            std::io::stdout().flush()?;
+            // TODO(nnarain): Why is this needed?
+            println!("\n\r");
         }
 
         // Recieve commands and dispatch to tasks
-        loop {
-            match cmd_reciever.try_recv() {
-                Ok(_cmd) => {
-                    // match cmd {
-                    //     IcarusCommand::CycleLed => led_sender.send(cmd.clone()).unwrap(),
-                    // }
-                },
-                Err(_) => break,
+        for cmd in cmd_reciever.try_iter() {
+            match cmd {
+                IcarusCommand::CycleLed => {},
             }
         }
 
@@ -226,7 +244,7 @@ fn main() -> anyhow::Result<()> {
         //     Err(e) => println!("{:?}", e),
         // }
 
-        thread::sleep(Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(1));
     }
 
     Ok(())
@@ -281,3 +299,9 @@ fn calibrate_imu<F>(samples: usize, delay_ms: u64, mut f: F) -> ImuCalibrationOf
         gz_offset: (gz_max - gz_min) / 2.0 + gz_min,
     }
 }
+
+// fn send_to_host(recv: &mut Receiver<IcarusState>) -> anyhow::Result<()> {
+//     let state = recv.try_iter()
+
+//     Ok(())
+// }

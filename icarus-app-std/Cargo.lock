@@ -775,12 +775,14 @@ dependencies = [
  "anyhow",
  "defmt",
  "defmt-bbq",
+ "embedded-hal 0.2.7",
  "embedded-hal 1.0.0-alpha.8",
  "embuild",
  "esp-idf-hal",
  "esp-idf-sys",
  "icarus-wire",
  "mpu6050",
+ "nb 1.0.0",
 ]
 
 [[package]]
