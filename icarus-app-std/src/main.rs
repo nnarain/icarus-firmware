@@ -36,6 +36,13 @@ use std::{
     io::{Write, Read}
 };
 
+// Voltage Dividor
+//   R1 = 6.8k
+//   R2 = 10k
+//
+// Ratio = R1 / (R1 + R2)
+const BATTERY_SENSE_DIVIDOR_RATIO: f32 = 0.5952381;
+
 #[allow(unreachable_code)]
 fn main() -> anyhow::Result<()> {
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,
@@ -178,11 +185,12 @@ fn main() -> anyhow::Result<()> {
                                         .duration_since(battery_last_read_time)
                                         .map(|e| e >= Duration::from_millis(1000));
             if let Ok(true) = should_read_battery {
-                let voltage = nb::block!(adc_channel.read(&mut battery_sense));
+                let adc_raw = nb::block!(adc_channel.read(&mut battery_sense));
                 battery_last_read_time = now;
 
-                if let Ok(voltage) = voltage {
-                    let battery_state = BatteryState {voltage, charge_complete: false};
+                if let Ok(adc_raw) = adc_raw {
+                    let voltage = ((adc_raw as f32) / BATTERY_SENSE_DIVIDOR_RATIO) as u16;
+                    let battery_state = BatteryState {voltage, adc_raw, charge_complete: false};
                     battery_sender.send(IcarusState::Battery(battery_state)).expect("Failed to send battery state");
                 }
             }
