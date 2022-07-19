@@ -27,12 +27,19 @@ pub struct BarometerRaw {
 /// IMU calibration offset
 pub struct ImuCalibrationOffset {}
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct BatteryState {
+    pub voltage: u16,
+    pub charge_complete: bool,
+}
+
 /// Data reporting channels for Icarus
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum IcarusState<'a> {
     Log(&'a [u8]),
     ImuRaw(ImuRaw),
-    BarometerRaw(BarometerRaw)
+    BarometerRaw(BarometerRaw),
+    Battery(BatteryState),
 }
 
 /// Icarus command channels
