@@ -29,7 +29,11 @@ pub struct ImuCalibrationOffset {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct BatteryState {
+    /// Battery voltage
     pub voltage: u16,
+    /// Raw value from ADC
+    pub adc_raw: u16,
+    /// Charge state from the LiPo charger
     pub charge_complete: bool,
 }
 
