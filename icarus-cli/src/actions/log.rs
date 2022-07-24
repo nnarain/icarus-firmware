@@ -53,7 +53,9 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
 
     // Serial receive buffer
     let mut raw_buf: Vec<u8> = vec![0; READ_BUF_SIZE];
-    let mut cobs_buf: CobsAccumulator<1024> = CobsAccumulator::new();
+    let mut filter_buf: Vec<u8> = vec![0; READ_BUF_SIZE];
+
+    let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
 
     loop {
         // Check if the user attempted to exit the program
@@ -64,31 +66,29 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
 
         match ser.read(raw_buf.as_mut_slice()) {
             Ok(n) => {
-                println!("recv: {}", n);
                 if n == 0 {
                     break;
                 }
 
-                let buf = &raw_buf[..n];
+                let filtered_len = filter_data(filter_buf.as_mut_slice(), &raw_buf[..n]);
+
+                let buf = &filter_buf[..filtered_len];
                 let mut window = buf;
 
                 'cobs: while !window.is_empty() {
                     // println!("window: {}", window.len());
                     window = match cobs_buf.feed::<IcarusState>(window) {
                         FeedResult::Consumed => {
-                            println!("comsumed");
                             break 'cobs
                         },
                         FeedResult::OverFull(new_wind) => {
-                            println!("overfull");
                             new_wind
                         },
                         FeedResult::DeserError(new_wind) => {
-                            println!("error: {}", new_wind.len());
                             new_wind
                         },
                         FeedResult::Success { data, remaining } => {
-                            println!("{:?} - {}", data, remaining.len());
+                            println!("{:?}", data);
 
                             remaining
                         }
@@ -101,4 +101,26 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
     }
 
     Ok(())
+}
+
+// Well this doesn't feel very Rust-y....
+fn filter_data(out: &mut [u8], recv: &[u8]) -> usize {
+    let mut delimiter_found = false;
+    let mut idx = 0;
+
+    for &b in recv {
+        if !delimiter_found {
+            out[idx] = b;
+            idx += 1;
+        }
+        else if b == b'\n' {
+            delimiter_found = false;
+        }
+
+        if b == 0 {
+            delimiter_found = true;
+        }
+    }
+
+    idx
 }
