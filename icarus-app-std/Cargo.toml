@@ -16,7 +16,8 @@ opt-level = "z"
 pio = ["esp-idf-sys/pio"]
 
 [dependencies]
-icarus-wire = {path = "../icarus-wire"}
+icarus-wire = { path = "../icarus-wire" }
+icarus-core = { path = "../icarus-core" }
 esp-idf-sys = { version = "0.31.6", features = ["binstart"] }
 esp-idf-hal = "0.38"
 anyhow = "1"

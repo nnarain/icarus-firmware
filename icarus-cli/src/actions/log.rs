@@ -5,7 +5,7 @@
 // @date Dec 14 2021
 //
 
-use icarus_wire::{self, IcarusState};
+use icarus_wire::{self, IcarusState, CobsAccumulator, FeedResult};
 
 use anyhow::{Result, bail};
 use clap::Parser;
@@ -52,7 +52,8 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
     ctrlc::set_handler(move || tx.send(()).expect("Failed to interrupt signal"))?;
 
     // Serial receive buffer
-    let mut buf: Vec<u8> = vec![0; READ_BUF_SIZE];
+    let mut raw_buf: Vec<u8> = vec![0; READ_BUF_SIZE];
+    let mut cobs_buf: CobsAccumulator<1024> = CobsAccumulator::new();
 
     loop {
         // Check if the user attempted to exit the program
@@ -61,41 +62,36 @@ pub fn run(mut ser: Box<dyn SerialPort>, args: Args) -> Result<()> {
             break;
         }
 
-        match ser.read(buf.as_mut_slice()) {
+        match ser.read(raw_buf.as_mut_slice()) {
             Ok(n) => {
-                let mut remaining = Some(&mut buf[..n]);
+                println!("recv: {}", n);
+                if n == 0 {
+                    break;
+                }
 
-                loop {
-                    remaining = if let Some(bytes) = remaining {
-                        match icarus_wire::decode::<IcarusState>(bytes) {
-                            Ok((state, unused)) => {
-                                match state {
-                                    IcarusState::ImuRaw(imu) => {
-                                        let ts: DateTime<Utc> = Utc::now();
+                let buf = &raw_buf[..n];
+                let mut window = buf;
 
-                                        let row = ImuRow {
-                                            ts: ts.to_string(),
-                                            ax: imu.accel.0,
-                                            ay: imu.accel.1,
-                                            az: imu.accel.2,
-                                            gx: imu.gyro.0,
-                                            gy: imu.gyro.1,
-                                            gz: imu.gyro.2,
-                                        };
-                                        csv_writer.serialize(row)?;
-                                    },
-                                    IcarusState::BarometerRaw(_) => {},
-                                    IcarusState::Battery(state) => println!("{:?}", state),
-                                    _ => {}
-                                }
-                                // unused.
-                                Some(unused)
-                            },
-                            Err(_) => None,
+                'cobs: while !window.is_empty() {
+                    // println!("window: {}", window.len());
+                    window = match cobs_buf.feed::<IcarusState>(window) {
+                        FeedResult::Consumed => {
+                            println!("comsumed");
+                            break 'cobs
+                        },
+                        FeedResult::OverFull(new_wind) => {
+                            println!("overfull");
+                            new_wind
+                        },
+                        FeedResult::DeserError(new_wind) => {
+                            println!("error: {}", new_wind.len());
+                            new_wind
+                        },
+                        FeedResult::Success { data, remaining } => {
+                            println!("{:?} - {}", data, remaining.len());
+
+                            remaining
                         }
-                    }
-                    else {
-                        break;
                     }
                 }
             },
