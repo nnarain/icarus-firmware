@@ -21,33 +21,22 @@ def make_plot(title, y_axis, ts, ys):
     return f
 
 def main(args):
-    # output_file(args.output_html)
+    output_file(args.output_html)
 
     df = pandas.read_csv(args.input_csv)
 
     ts = df['ts']
 
-    ax = df['ax']
-    ay = df['ay']
-    az = df['az']
+    pitch = df['pitch']
+    roll = df['roll']
+    yaw = df['yaw']
 
-    gx = df['gx']
-    gy = df['gy']
-    gz = df['gz']
+    f_pitch = make_plot('Pitch', 'Pitch', ts, pitch)
+    f_roll = make_plot('Roll', 'Roll', ts, roll)
+    f_yaw = make_plot('Yaw', 'Yaw', ts, yaw)
 
-    f_ax = make_plot('IMU Acceleration X', 'Acceleration', ts, ax)
-    f_ay = make_plot('IMU Acceleration Y', 'Acceleration', ts, ay)
-    f_az = make_plot('IMU Acceleration Z', 'Acceleration', ts, az)
-
-    f_gx = make_plot('IMU Gyro X', 'Rotation', ts, gx)
-    f_gy = make_plot('IMU Gyro Y', 'Rotation', ts, gy)
-    f_gz = make_plot('IMU Gyro Z', 'Rotation', ts, gz)
-
-    c1 = column(f_ax, f_ay, f_az)
-    c2 = column(f_gx, f_gy, f_gz)
-
-    show(row(c1, c2))
-
+    c1 = column(f_pitch, f_roll, f_yaw)
+    show(c1)
 
 
 if __name__ == '__main__':
