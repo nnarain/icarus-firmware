@@ -10,7 +10,7 @@ use icarus_app_std::{
     stat::{StatLed, StatColor},
 };
 use icarus_core::{EstimatorInput, StateEstimator, data::{AccelerometerData, GyroscopeData}};
-use icarus_wire::{self, IcarusState, IcarusCommand, BatteryState};
+use icarus_wire::{self, IcarusState, IcarusCommand};
 
 use esp_idf_hal::{
     prelude::*,
@@ -19,17 +19,15 @@ use esp_idf_hal::{
     i2c,
     delay::FreeRtos,
 };
-use embedded_hal_0_2::adc::OneShot;
 
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
-
 
 use mpu6050::Mpu6050;
 
 use std::{
     sync::{
         Arc,
-        mpsc::{channel, Receiver},
+        mpsc::channel,
     },
     time::{Duration, Instant},
     thread,
@@ -172,7 +170,7 @@ fn main() -> anyhow::Result<()> {
                             };
                 
                 let input = EstimatorInput { accel, gyro, altitude: 0.0 };
-                // state_sender.send(IcarusState::Sensors(input.clone())).expect("Failed to send input");
+                state_sender.send(IcarusState::Sensors(input.clone())).expect("Failed to send input");
 
                 if let Ok(estimated_state) = estimator.update(input, delta_time) {
                     state_sender.send(IcarusState::EstimatedState(estimated_state)).expect("Failed to send state");
@@ -204,9 +202,9 @@ fn main() -> anyhow::Result<()> {
         for state in state_reciever.try_iter() {
             let used_buf = icarus_wire::encode(&state, &mut send_buf)?;
             std::io::stdout().write_all(&used_buf)?;
-            std::io::stdout().flush()?;
+            // std::io::stdout().flush()?;
             // TODO(nnarain): Why is this needed?
-            // println!("\n\r");
+            print!("\n");
         }
 
         // Recieve commands and dispatch to tasks
