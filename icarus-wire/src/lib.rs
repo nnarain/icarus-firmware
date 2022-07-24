@@ -1,22 +1,19 @@
 #![no_std]
 use serde::{Serialize, Deserialize};
 
+use icarus_core::{
+    EstimatedState, EstimatorInput,
+};
+
 // Re-export postcard functions for encoding and decoding
 pub use postcard::{
     to_slice_cobs as encode,
     take_from_bytes_cobs as decode,
     to_vec_cobs as decode_vec,
+    accumulator::{CobsAccumulator, FeedResult},
 };
 
 pub use postcard::{Result, Error};
-
-/// Raw data from the IMU
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-pub struct ImuRaw {
-    pub accel: (f32, f32, f32),
-    pub gyro: (f32, f32, f32),
-    pub temp: f32,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct BarometerRaw {
@@ -39,10 +36,9 @@ pub struct BatteryState {
 
 /// Data reporting channels for Icarus
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-pub enum IcarusState<'a> {
-    Log(&'a [u8]),
-    ImuRaw(ImuRaw),
-    BarometerRaw(BarometerRaw),
+pub enum IcarusState {
+    Sensors(EstimatorInput),
+    EstimatedState(EstimatedState),
     Battery(BatteryState),
 }
 

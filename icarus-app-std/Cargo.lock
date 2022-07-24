@@ -18,6 +18,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ahrs"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dce5b6279fad0a36b3ef4fd938fb6b2751a8899ff8275fb9aba9a25345ca9992"
+dependencies = [
+ "nalgebra 0.30.1",
+ "num-traits",
+ "simba 0.7.1",
+]
+
+[[package]]
 name = "ansi_term"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -37,6 +48,15 @@ name = "approx"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f2a05fd1bd10b2527e20a2cd32d8873d115b8b39fe219ee25f42a8aca6ba278"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
 dependencies = [
  "num-traits",
 ]
@@ -780,15 +800,27 @@ dependencies = [
  "embuild",
  "esp-idf-hal",
  "esp-idf-sys",
+ "icarus-core",
  "icarus-wire",
  "mpu6050",
  "nb 1.0.0",
 ]
 
 [[package]]
+name = "icarus-core"
+version = "0.1.0"
+dependencies = [
+ "ahrs",
+ "heapless",
+ "nalgebra 0.30.1",
+ "serde",
+]
+
+[[package]]
 name = "icarus-wire"
 version = "0.1.0"
 dependencies = [
+ "icarus-core",
  "postcard",
  "serde",
 ]
@@ -949,7 +981,7 @@ checksum = "d025cefef6f96350c1ed8e23b06b94196a44e653d6b04da079ea52a0391089dc"
 dependencies = [
  "embedded-hal 0.2.7",
  "libm",
- "nalgebra",
+ "nalgebra 0.24.1",
 ]
 
 [[package]]
@@ -958,13 +990,27 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a9002895a0de45e3cde58b36d0cf2f83249e7dba4a43ee64dafbf01bfd464ff"
 dependencies = [
- "approx",
+ "approx 0.4.0",
  "generic-array",
- "num-complex",
- "num-rational",
+ "num-complex 0.3.1",
+ "num-rational 0.3.2",
  "num-traits",
  "rand",
- "simba",
+ "simba 0.3.1",
+ "typenum",
+]
+
+[[package]]
+name = "nalgebra"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fb2d0de08694bed883320212c18ee3008576bfe8c306f4c3c4a58b4876998be"
+dependencies = [
+ "approx 0.5.1",
+ "num-complex 0.4.2",
+ "num-rational 0.4.1",
+ "num-traits",
+ "simba 0.7.1",
  "typenum",
 ]
 
@@ -1009,6 +1055,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-complex"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ae39348c8bc5fbd7f40c727a9925f03517afd2ab27d46702108b6a7e5414c19"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1023,6 +1078,17 @@ name = "num-rational"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12ac428b1cb17fce6f731001d307d351ec70a6d202fc2e60f7d4c5e42d8f4f07"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0638a1c9d0a3c0914158145bc76cff373a75a627e6ecbfb71cbe6f453a5a19b0"
 dependencies = [
  "autocfg",
  "num-integer",
@@ -1477,8 +1543,21 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17bfe642b1728a6e89137ad428ef5d4738eca4efaba9590f9e110b8944028621"
 dependencies = [
- "approx",
- "num-complex",
+ "approx 0.4.0",
+ "num-complex 0.3.1",
+ "num-traits",
+ "paste",
+]
+
+[[package]]
+name = "simba"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13a2609e876d4f77f6ab7ff5254fc39b4f1927ba8e6db3d18be7c32534d3725e"
+dependencies = [
+ "approx 0.5.1",
+ "libm",
+ "num-complex 0.4.2",
  "num-traits",
  "paste",
 ]
