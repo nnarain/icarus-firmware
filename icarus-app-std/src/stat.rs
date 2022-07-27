@@ -18,7 +18,7 @@ use core::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
 pub enum StatColor {
-    Red, Green, Blue
+    Red, Green, Blue, Black
 }
 
 impl From<StatColor> for u32 {
@@ -27,6 +27,7 @@ impl From<StatColor> for u32 {
             StatColor::Red   => 0x99_00_00u32,
             StatColor::Green => 0x00_99_00u32,
             StatColor::Blue  => 0x00_00_99u32,
+            StatColor::Black => 0x00_00_00u32,
         }
     }
 }

@@ -6,40 +6,31 @@
 //
 
 use icarus_app_std::{
+    wifi::AppWifi,
+    stat::{StatColor, StatLed},
     ImuCalibrationOffset,
-    stat::{StatLed, StatColor},
 };
-use icarus_core::{EstimatorInput, StateEstimator, data::{AccelerometerData, GyroscopeData}};
-use icarus_wire::{self, IcarusState, IcarusCommand};
+use icarus_core::{
+    data::{AccelerometerData, GyroscopeData},
+    EstimatorInput, StateEstimator,
+};
+use icarus_wire::{self, IcarusCommand, IcarusState};
 
-use esp_idf_hal::{
-    prelude::*,
-    peripherals::Peripherals,
-    ledc::*,
-    i2c,
-    delay::FreeRtos,
-};
+use esp_idf_hal::{delay::FreeRtos, i2c, ledc::*, peripherals::Peripherals, prelude::*};
 
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
 use mpu6050::Mpu6050;
 
 use std::{
-    sync::{
-        Arc,
-        mpsc::channel,
-    },
-    time::{Duration, Instant},
+    io::{Read, Write},
+    sync::{mpsc::channel, Arc},
     thread,
-    io::{Write, Read}
+    time::{Duration, Instant},
 };
 
-// Voltage Dividor
-//   R1 = 6.8k
-//   R2 = 10k
-//
-// Ratio = R1 / (R1 + R2)
-// const BATTERY_SENSE_DIVIDOR_RATIO: f32 = 0.5952381;
+const WIFI_SSID: &str = env!("ICARUS_WIFI_SSID");
+const WIFI_PASS: &str = env!("ICARUS_WIFI_PASS");
 
 #[allow(unreachable_code)]
 fn main() -> anyhow::Result<()> {
@@ -82,12 +73,21 @@ fn main() -> anyhow::Result<()> {
     let scl = p.pins.gpio2;
 
     let i2c_config = <i2c::config::MasterConfig as Default>::default().baudrate(400.kHz().into());
-    let i2c = i2c::Master::<i2c::I2C0, _, _>::new(p.i2c0, i2c::MasterPins {sda, scl}, i2c_config)?;
+    let i2c =
+        i2c::Master::<i2c::I2C0, _, _>::new(p.i2c0, i2c::MasterPins { sda, scl }, i2c_config)?;
 
-    let mut delay = FreeRtos{};
+    let mut delay = FreeRtos {};
 
     let mut imu = Mpu6050::new_with_addr(i2c, 0x68);
     imu.init(&mut delay).unwrap(); // TODO: MPU6050 error type does not implement `Error` (can't use `?` operator)
+
+    // -----------------------------------------------------------------------------------------------------------------
+    // Wireless Setup
+    // -----------------------------------------------------------------------------------------------------------------
+
+    // Setup WiFi (in the future this will be Bluetooth LE)
+    let mut wifi = AppWifi::new()?;
+    let wifi_connected = wifi.connect(WIFI_SSID, WIFI_PASS).is_ok();
 
     // TODO(nnarain): Barometer
 
@@ -113,18 +113,19 @@ fn main() -> anyhow::Result<()> {
                         remaining = if let Some(bytes) = remaining {
                             match icarus_wire::decode::<IcarusCommand>(bytes) {
                                 Ok((cmd, unused)) => {
-                                    cmd_sender.send(cmd).expect("Failed to send recieved command on channel");
+                                    cmd_sender
+                                        .send(cmd)
+                                        .expect("Failed to send recieved command on channel");
                                     Some(unused)
-                                },
+                                }
                                 Err(_) => None,
                             }
-                        }
-                        else {
+                        } else {
                             break;
                         }
                     }
-                },
-                Err(_) => {},
+                }
+                Err(_) => {}
             }
             thread::sleep(Duration::from_millis(10));
         }
@@ -159,21 +160,29 @@ fn main() -> anyhow::Result<()> {
 
             if let (Ok(accel), Ok(gyro), Ok(_temp)) = (accel, gyro, temp) {
                 let accel = AccelerometerData {
-                                x: accel.x - offsets.ax_offset,
-                                y: accel.y - offsets.ay_offset,
-                                z: accel.z - offsets.az_offset,
-                            };
+                    x: accel.x - offsets.ax_offset,
+                    y: accel.y - offsets.ay_offset,
+                    z: accel.z - offsets.az_offset,
+                };
                 let gyro = GyroscopeData {
-                                x: gyro.x - offsets.gx_offset,
-                                y: gyro.y - offsets.gy_offset,
-                                z: gyro.z - offsets.gz_offset,
-                            };
-                
-                let input = EstimatorInput { accel, gyro, altitude: 0.0 };
-                state_sender.send(IcarusState::Sensors(input.clone())).expect("Failed to send input");
+                    x: gyro.x - offsets.gx_offset,
+                    y: gyro.y - offsets.gy_offset,
+                    z: gyro.z - offsets.gz_offset,
+                };
+
+                let input = EstimatorInput {
+                    accel,
+                    gyro,
+                    altitude: 0.0,
+                };
+                state_sender
+                    .send(IcarusState::Sensors(input.clone()))
+                    .expect("Failed to send input");
 
                 if let Ok(estimated_state) = estimator.update(input, delta_time) {
-                    state_sender.send(IcarusState::EstimatedState(estimated_state)).expect("Failed to send state");
+                    state_sender
+                        .send(IcarusState::EstimatedState(estimated_state))
+                        .expect("Failed to send state");
                 }
             }
 
@@ -183,14 +192,17 @@ fn main() -> anyhow::Result<()> {
 
     // Spawn LED task
     thread::spawn(move || {
-        let colors: [StatColor; 3] = [StatColor::Red, StatColor::Green, StatColor::Blue];
+        let online_colors: [StatColor; 2] = [StatColor::Green, StatColor::Blue];
+        let offline_colors: [StatColor; 2] = [StatColor::Red, StatColor::Black];
+
+        let colors = if wifi_connected { &online_colors } else { &offline_colors };
+        let blink_duration_ms = if wifi_connected { 1000 } else { 500 };
 
         for c in colors.iter().cycle() {
             stat_led.update(*c).unwrap();
-            thread::sleep(Duration::from_millis(1000));
+            thread::sleep(Duration::from_millis(blink_duration_ms));
         }
     });
-
 
     defmt::info!("Starting IDLE task");
 
@@ -210,7 +222,7 @@ fn main() -> anyhow::Result<()> {
         // Recieve commands and dispatch to tasks
         for cmd in cmd_reciever.try_iter() {
             match cmd {
-                IcarusCommand::CycleLed => {},
+                IcarusCommand::CycleLed => {}
             }
         }
 
@@ -222,8 +234,9 @@ fn main() -> anyhow::Result<()> {
 
 /// Sample accelerometer and gyro data and calculate the device specific offset
 fn calibrate_imu<F>(samples: usize, delay_ms: u64, mut f: F) -> ImuCalibrationOffset
-    where F: FnMut() -> ((f32, f32, f32), (f32, f32, f32)) {
-
+where
+    F: FnMut() -> ((f32, f32, f32), (f32, f32, f32)),
+{
     let (a, g) = f();
 
     // Min / Max values for each axis on the accelerometer and the gyro

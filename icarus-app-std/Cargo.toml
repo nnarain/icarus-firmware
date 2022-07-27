@@ -20,6 +20,8 @@ icarus-wire = { path = "../icarus-wire" }
 icarus-core = { path = "../icarus-core" }
 esp-idf-sys = { version = "0.31.6", features = ["binstart"] }
 esp-idf-hal = "0.38"
+esp-idf-svc = "0.42"
+embedded-svc = "0.22"
 anyhow = "1"
 embedded-hal = "=1.0.0-alpha.8"
 embedded-hal-0-2 = { package = "embedded-hal", version = "0.2.7", features = ["unproven"] }
