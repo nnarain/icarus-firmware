@@ -18,16 +18,19 @@ use core::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
 pub enum StatColor {
-    Red, Green, Blue, Black
+    Red, Green, Blue, Yellow, Black
 }
 
 impl From<StatColor> for u32 {
     fn from(c: StatColor) -> Self {
+        // The ws2812 is GRB format.
+        // The values here represent the bit pattern which is written to the LED LSB first
         match c {
-            StatColor::Red   => 0x99_00_00u32,
-            StatColor::Green => 0x00_99_00u32,
-            StatColor::Blue  => 0x00_00_99u32,
-            StatColor::Black => 0x00_00_00u32,
+            StatColor::Green   => 0x00_00_FFu32,
+            StatColor::Red     => 0x00_FF_00u32,
+            StatColor::Blue    => 0xFF_00_00u32,
+            StatColor::Yellow  => 0x00_FF_FFu32,
+            StatColor::Black   => 0x00_00_00u32,
         }
     }
 }

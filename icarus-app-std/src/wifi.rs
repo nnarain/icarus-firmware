@@ -67,21 +67,21 @@ impl AppWifi {
 
         self.wifi.set_configuration(&Configuration::Client(config))?;
 
+        Ok(())
 
+    }
+
+    pub fn is_connected(&self) -> anyhow::Result<bool> {
         self.wifi.wait_status_with_timeout(Duration::from_secs(20), |status| !status.is_transitional())
             .map_err(|e| anyhow::anyhow!("Unexpected Wifi status: {:?}", e))?;
 
         let status = self.wifi.get_status();
-
-        if let Status(
-            ClientStatus::Started(ClientConnectionStatus::Connected(ClientIpStatus::Done(_))),
-            ApStatus::Stopped,
-        ) = status
-        {
-            Ok(())
-        } else {
-            bail!("Unexpected Wifi status: {:?}", status)
+        if let Status(ClientStatus::Started(ClientConnectionStatus::Connected(_)), _) = status {
+            Ok(true)
         }
-
+        else {
+            Ok(false)
+        }
     }
+
 }

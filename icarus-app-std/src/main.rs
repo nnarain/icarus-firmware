@@ -24,7 +24,7 @@ use mpu6050::Mpu6050;
 
 use std::{
     io::{Read, Write},
-    sync::{mpsc::channel, Arc},
+    sync::{mpsc::channel, Arc, atomic::{AtomicBool, Ordering}},
     thread,
     time::{Duration, Instant},
 };
@@ -87,7 +87,7 @@ fn main() -> anyhow::Result<()> {
 
     // Setup WiFi (in the future this will be Bluetooth LE)
     let mut wifi = AppWifi::new()?;
-    let wifi_connected = wifi.connect(WIFI_SSID, WIFI_PASS).is_ok();
+    wifi.connect(WIFI_SSID, WIFI_PASS)?;
 
     // TODO(nnarain): Barometer
 
@@ -95,10 +95,12 @@ fn main() -> anyhow::Result<()> {
     // Tasks
     // -----------------------------------------------------------------------------------------------------------------
 
-    // Setup task queues
+    // Setup task queues and shared state
     let (cmd_sender, cmd_reciever) = channel::<IcarusCommand>();
-
     let (state_sender, state_reciever) = channel::<IcarusState>();
+
+    let wireless_connected = Arc::new(AtomicBool::new(false));
+    let wireless_connected_read = wireless_connected.clone();
 
     // Spawn command task
     thread::spawn(move || {
@@ -192,15 +194,23 @@ fn main() -> anyhow::Result<()> {
 
     // Spawn LED task
     thread::spawn(move || {
-        let online_colors: [StatColor; 2] = [StatColor::Green, StatColor::Blue];
-        let offline_colors: [StatColor; 2] = [StatColor::Red, StatColor::Black];
+        let mut wireless_connected = false;
 
-        let colors = if wifi_connected { &online_colors } else { &offline_colors };
-        let blink_duration_ms = if wifi_connected { 1000 } else { 500 };
+        loop {
+            let is_connected = wireless_connected_read.load(Ordering::Relaxed);
 
-        for c in colors.iter().cycle() {
-            stat_led.update(*c).unwrap();
-            thread::sleep(Duration::from_millis(blink_duration_ms));
+            let (color, duration) = if is_connected {
+                (StatColor::Green, 1000)
+            }
+            else {
+                (StatColor::Red, 300)
+            };
+
+            stat_led.update(color).unwrap();
+            thread::sleep(Duration::from_millis(duration));
+
+            stat_led.update(StatColor::Black).unwrap();
+            thread::sleep(Duration::from_millis(duration));
         }
     });
 
@@ -213,10 +223,10 @@ fn main() -> anyhow::Result<()> {
         // Write all recieved state to serial port
         for state in state_reciever.try_iter() {
             let used_buf = icarus_wire::encode(&state, &mut send_buf)?;
-            std::io::stdout().write_all(&used_buf)?;
+            //std::io::stdout().write_all(&used_buf)?;
             // std::io::stdout().flush()?;
             // TODO(nnarain): Why is this needed?
-            print!("\n");
+            //print!("\n");
         }
 
         // Recieve commands and dispatch to tasks
@@ -224,6 +234,14 @@ fn main() -> anyhow::Result<()> {
             match cmd {
                 IcarusCommand::CycleLed => {}
             }
+        }
+
+        let connected = wireless_connected.load(Ordering::Relaxed);
+        if !connected {
+            // Check if wifi is connected
+            let is_connected = wifi.is_connected().unwrap_or(false);
+
+            wireless_connected.store(is_connected, Ordering::Relaxed);
         }
 
         thread::sleep(Duration::from_millis(10));
