@@ -6,6 +6,7 @@
 //
 
 pub mod stat;
+pub mod wifi;
 
 pub struct ImuCalibrationOffset {
     pub ax_offset: f32,
