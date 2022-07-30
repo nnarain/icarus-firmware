@@ -16,7 +16,10 @@ use esp_idf_svc::{
     wifi::*,
 };
 
-use embedded_svc::wifi::*;
+use embedded_svc::{
+    ipv4,
+    wifi::*
+};
 
 use anyhow::{Result, bail};
 
@@ -72,16 +75,38 @@ impl AppWifi {
     }
 
     pub fn is_connected(&self) -> anyhow::Result<bool> {
-        self.wifi.wait_status_with_timeout(Duration::from_secs(20), |status| !status.is_transitional())
-            .map_err(|e| anyhow::anyhow!("Unexpected Wifi status: {:?}", e))?;
+        // self.wifi.wait_status_with_timeout(Duration::from_secs(20), |status| !status.is_transitional())
+        //     .map_err(|e| anyhow::anyhow!("Unexpected Wifi status: {:?}", e))?;
 
-        let status = self.wifi.get_status();
+        // let status = self.wifi.get_status();
+        let status = self.get_status()?;
         if let Status(ClientStatus::Started(ClientConnectionStatus::Connected(_)), _) = status {
             Ok(true)
         }
         else {
             Ok(false)
         }
+    }
+
+    pub fn get_ip_settings(&self) -> anyhow::Result<ipv4::ClientSettings> {
+        let status = self.get_status()?;
+        if let Status(ClientStatus::Started(ClientConnectionStatus::Connected(ip_status)), _) = status {
+            if let ClientIpStatus::Done(ipv4) = ip_status {
+                Ok(ipv4)
+            }
+            else {
+                bail!("Not connected")
+            }
+        }
+        else {
+            bail!("Not connected")
+        }
+    }
+
+    pub fn get_status(&self) -> anyhow::Result<Status> {
+        self.wifi.wait_status_with_timeout(Duration::from_secs(20), |status| !status.is_transitional())
+            .map_err(|e| anyhow::anyhow!("Unexpected Wifi status: {:?}", e))?;
+        Ok(self.wifi.get_status())
     }
 
 }
