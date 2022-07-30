@@ -6,8 +6,9 @@
 //
 
 use icarus_app_std::{
-    wifi::AppWifi,
     stat::{StatColor, StatLed},
+    wifi::AppWifi,
+    console::{self, ConsoleCommand, WirelessCommands},
     ImuCalibrationOffset,
 };
 use icarus_core::{
@@ -17,14 +18,17 @@ use icarus_core::{
 use icarus_wire::{self, IcarusCommand, IcarusState};
 
 use esp_idf_hal::{delay::FreeRtos, i2c, ledc::*, peripherals::Peripherals, prelude::*};
-
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
 use mpu6050::Mpu6050;
 
 use std::{
     io::{Read, Write},
-    sync::{mpsc::channel, Arc, atomic::{AtomicBool, Ordering}},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc::channel,
+        Arc,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -99,31 +103,23 @@ fn main() -> anyhow::Result<()> {
     let (cmd_sender, cmd_reciever) = channel::<IcarusCommand>();
     let (state_sender, state_reciever) = channel::<IcarusState>();
 
+    let (console_cmd_sender, console_cmd_receiver) = channel::<ConsoleCommand>();
+
     let wireless_connected = Arc::new(AtomicBool::new(false));
     let wireless_connected_read = wireless_connected.clone();
 
-    // Spawn command task
+    // Spawn serial console command task
     thread::spawn(move || {
         let mut read_buf: [u8; 64] = [0; 64];
         loop {
             // TODO: Clean up
             match std::io::stdin().read(&mut read_buf) {
                 Ok(n) => {
-                    let mut remaining = Some(&mut read_buf[..n]);
+                    let buf = &read_buf[..n];
 
-                    loop {
-                        remaining = if let Some(bytes) = remaining {
-                            match icarus_wire::decode::<IcarusCommand>(bytes) {
-                                Ok((cmd, unused)) => {
-                                    cmd_sender
-                                        .send(cmd)
-                                        .expect("Failed to send recieved command on channel");
-                                    Some(unused)
-                                }
-                                Err(_) => None,
-                            }
-                        } else {
-                            break;
+                    if n != 0 && buf[0] != b'\n' {
+                        if let Some(cmd) = console::parse(buf) {
+                            console_cmd_sender.send(cmd).expect("Failed to send console command");
                         }
                     }
                 }
@@ -138,7 +134,7 @@ fn main() -> anyhow::Result<()> {
     // 1. Get sensor input
     // 2. Pass sensor data to the state estimator
     // 3. Use estimated state in PID control loop
-    // 4. 'Mix' motor ouptut
+    // 4. 'Mix' motor output
     thread::spawn(move || {
         let offsets = calibrate_imu(500, 20, || {
             let a = imu.get_acc().unwrap();
@@ -201,8 +197,7 @@ fn main() -> anyhow::Result<()> {
 
             let (color, duration) = if is_connected {
                 (StatColor::Green, 1000)
-            }
-            else {
+            } else {
                 (StatColor::Red, 300)
             };
 
@@ -236,15 +231,38 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
+        for cmd in console_cmd_receiver.try_iter() {
+            match cmd {
+                ConsoleCommand::Wireless(cmd) => {
+                    match cmd {
+                        WirelessCommands::Get => print_wifi_settings(&mut wifi)?,
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         let connected = wireless_connected.load(Ordering::Relaxed);
         if !connected {
             // Check if wifi is connected
             let is_connected = wifi.is_connected().unwrap_or(false);
-
             wireless_connected.store(is_connected, Ordering::Relaxed);
         }
 
         thread::sleep(Duration::from_millis(10));
+    }
+
+    Ok(())
+}
+
+fn print_wifi_settings(wifi: &mut AppWifi) -> anyhow::Result<()> {
+    let connected = wifi.is_connected().unwrap_or(false);
+    if connected {
+        let ip_settings = wifi.get_ip_settings()?;
+        println!("{:?}", ip_settings);
+    }
+    else {
+        println!("Not connected");
     }
 
     Ok(())
