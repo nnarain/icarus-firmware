@@ -844,10 +844,12 @@ dependencies = [
  "esp-idf-svc",
  "esp-idf-sys",
  "getargs",
+ "heapless",
  "icarus-core",
  "icarus-wire",
  "mpu6050",
  "nb 1.0.0",
+ "serde",
 ]
 
 [[package]]
