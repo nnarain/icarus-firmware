@@ -22,6 +22,7 @@ esp-idf-sys = { version = "0.31.6", features = ["binstart"] }
 esp-idf-hal = "0.38"
 esp-idf-svc = "0.42"
 embedded-svc = "0.22"
+heapless = "0.7"
 anyhow = "1"
 embedded-hal = "=1.0.0-alpha.8"
 embedded-hal-0-2 = { package = "embedded-hal", version = "0.2.7", features = ["unproven"] }
@@ -30,6 +31,8 @@ defmt = "0.3"
 defmt-bbq = { path = "../external/defmt-bbq" }
 nb = "1"
 getargs = { version = "0.5", default-features = false }
+serde = { version = "1", features = ["derive"]}
+
 
 [build-dependencies]
 embuild = "0.29"

@@ -25,12 +25,9 @@ pub struct Args {
     #[clap(subcommand)]
     pub action: Action,
     /// Serial port Icarus is connected to
-    #[clap(short = 'p', long = "port")]
-    pub port: String,
+    #[clap(short = 'i', long = "ip")]
+    pub ip: String,
     /// Serial baud rate
-    #[clap(short = 'b', long = "baud", default_value_t = 115200)]
-    pub baud: u32,
-    /// Serial port timeout in milliseconds
-    #[clap(short = 't', long = "timeout", default_value_t = 10)]
-    pub timeout: u64,
+    #[clap(short = 'p', long = "port", default_value_t = 5000)]
+    pub port: u16,
 }

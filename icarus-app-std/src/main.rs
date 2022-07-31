@@ -24,14 +24,17 @@ use mpu6050::Mpu6050;
 
 use std::{
     io::{Read, Write},
+    net::{TcpListener, TcpStream},
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::channel,
+        // mpsc::channel,
         Arc,
     },
     thread,
     time::{Duration, Instant},
 };
+
+use heapless::spsc::Queue;
 
 const WIFI_SSID: &str = env!("ICARUS_WIFI_SSID");
 const WIFI_PASS: &str = env!("ICARUS_WIFI_PASS");
@@ -83,7 +86,16 @@ fn main() -> anyhow::Result<()> {
     let mut delay = FreeRtos {};
 
     let mut imu = Mpu6050::new_with_addr(i2c, 0x68);
-    imu.init(&mut delay).unwrap(); // TODO: MPU6050 error type does not implement `Error` (can't use `?` operator)
+
+    for i in 0..5 {
+        println!("Initializing IMU. Attempt {}", i + 1);
+        if imu.init(&mut delay).is_ok() {
+            break;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    // TODO(nnarain): Barometer
 
     // -----------------------------------------------------------------------------------------------------------------
     // Wireless Setup
@@ -93,20 +105,23 @@ fn main() -> anyhow::Result<()> {
     let mut wifi = AppWifi::new()?;
     wifi.connect(WIFI_SSID, WIFI_PASS)?;
 
-    // TODO(nnarain): Barometer
-
     // -----------------------------------------------------------------------------------------------------------------
     // Tasks
     // -----------------------------------------------------------------------------------------------------------------
 
     // Setup task queues and shared state
-    let (cmd_sender, cmd_reciever) = channel::<IcarusCommand>();
-    let (state_sender, state_reciever) = channel::<IcarusState>();
+    static mut STATE_QUEUE: Queue<IcarusState, 4> = Queue::new();
+    let (mut state_tx, mut state_rx) = unsafe { STATE_QUEUE.split() };
 
-    let (console_cmd_sender, console_cmd_receiver) = channel::<ConsoleCommand>();
+    static mut CONSOLE_COMMAND_QUEUE: Queue<ConsoleCommand, 2> = Queue::new();
+    let (mut console_command_tx, mut console_command_rx) = unsafe { CONSOLE_COMMAND_QUEUE.split() };
+
+    static mut STREAM_QUEUE: Queue<TcpStream, 2> = Queue::new();
+    let (mut stream_tx, mut stream_rx) = unsafe { STREAM_QUEUE.split() };
 
     let wireless_connected = Arc::new(AtomicBool::new(false));
-    let wireless_connected_read = wireless_connected.clone();
+    let wireless_connected_read1 = wireless_connected.clone();
+    let wireless_connected_read2 = wireless_connected.clone();
 
     // Spawn serial console command task
     thread::spawn(move || {
@@ -119,12 +134,31 @@ fn main() -> anyhow::Result<()> {
 
                     if n != 0 && buf[0] != b'\n' {
                         if let Some(cmd) = console::parse(buf) {
-                            console_cmd_sender.send(cmd).expect("Failed to send console command");
+                            console_command_tx.enqueue(cmd).ok();
                         }
                     }
                 }
                 Err(_) => {}
             }
+            thread::sleep(Duration::from_millis(100));
+        }
+    });
+
+    // Spawn wireless communication task
+    thread::spawn(move || {
+        loop {
+            if wireless_connected_read2.load(Ordering::Relaxed) {
+                // TODO: Error handling and state reporting
+                let listener = TcpListener::bind("0.0.0.0:5000").unwrap();
+                match listener.accept() {
+                    Ok((stream, _)) => {
+                        stream_tx.enqueue(stream).ok();
+                        // break;
+                    },
+                    Err(_) => {},
+                }
+            }
+
             thread::sleep(Duration::from_millis(10));
         }
     });
@@ -173,14 +207,11 @@ fn main() -> anyhow::Result<()> {
                     gyro,
                     altitude: 0.0,
                 };
-                state_sender
-                    .send(IcarusState::Sensors(input.clone()))
-                    .expect("Failed to send input");
+
+                state_tx.enqueue(IcarusState::Sensors(input.clone())).ok();
 
                 if let Ok(estimated_state) = estimator.update(input, delta_time) {
-                    state_sender
-                        .send(IcarusState::EstimatedState(estimated_state))
-                        .expect("Failed to send state");
+                    state_tx.enqueue(IcarusState::EstimatedState(estimated_state)).ok();
                 }
             }
 
@@ -190,10 +221,8 @@ fn main() -> anyhow::Result<()> {
 
     // Spawn LED task
     thread::spawn(move || {
-        let mut wireless_connected = false;
-
         loop {
-            let is_connected = wireless_connected_read.load(Ordering::Relaxed);
+            let is_connected = wireless_connected_read1.load(Ordering::Relaxed);
 
             let (color, duration) = if is_connected {
                 (StatColor::Green, 1000)
@@ -209,36 +238,29 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    defmt::info!("Starting IDLE task");
-
+    // Idle Task
+    let mut stream: Option<TcpStream> = None;
     let mut send_buf: [u8; 128] = [0; 128];
 
-    // Idle Task
     loop {
-        // Write all recieved state to serial port
-        for state in state_reciever.try_iter() {
-            let used_buf = icarus_wire::encode(&state, &mut send_buf)?;
-            //std::io::stdout().write_all(&used_buf)?;
-            // std::io::stdout().flush()?;
-            // TODO(nnarain): Why is this needed?
-            //print!("\n");
+        // Attempt to get the connected stream
+        if let Some(s) = stream_rx.dequeue() {
+            stream = Some(s)
         }
 
-        // Recieve commands and dispatch to tasks
-        for cmd in cmd_reciever.try_iter() {
-            match cmd {
-                IcarusCommand::CycleLed => {}
+        if let Some(ref mut stream) = stream {
+            while let Some(state) = state_rx.dequeue() {
+                if let Ok(used) = icarus_wire::encode(&state, &mut send_buf) {
+                    stream.write_all(used).ok();
+                }
             }
         }
 
-        for cmd in console_cmd_receiver.try_iter() {
-            match cmd {
-                ConsoleCommand::Wireless(cmd) => {
-                    match cmd {
-                        WirelessCommands::Get => print_wifi_settings(&mut wifi)?,
-                        _ => {}
-                    }
-                }
+        // Process console commands
+        while let Some(console_cmd) = console_command_rx.dequeue() {
+            match console_cmd {
+                ConsoleCommand::Wireless(WirelessCommands::Get) => print_wifi_settings(&mut wifi)?,
+                _ => {}
             }
         }
 
@@ -249,7 +271,7 @@ fn main() -> anyhow::Result<()> {
             wireless_connected.store(is_connected, Ordering::Relaxed);
         }
 
-        thread::sleep(Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(20));
     }
 
     Ok(())
@@ -318,3 +340,8 @@ where
         gz_offset: (gz_max - gz_min) / 2.0 + gz_min,
     }
 }
+
+// fn write_to_stream<S: Write, V: Deserialize>(stream: &mut S, value: &V) -> anyhow::Result<()> {
+
+//     Ok(())
+// }

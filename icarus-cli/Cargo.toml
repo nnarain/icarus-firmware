@@ -6,12 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tokio = { version = "1", features = ["net", "time", "macros", "rt", "rt-multi-thread", "sync", "signal"] }
+futures-timer = "3.0"
+futures-util = "0.3"
 icarus-wire = {path = "../icarus-wire"}
 clap = {version = "3.2", features = ["derive"]}
-serialport = "4.0"
+# serialport = "4.0"
 defmt-decoder = { version = "=0.3.1", features = ["unstable"] }
 anyhow = "1.0"
 ctrlc = "3.2"
 csv = "1.1.6"
 serde = { version = "1", features = ["derive"]}
-chrono = "0.4"
+# chrono = "0.4"
