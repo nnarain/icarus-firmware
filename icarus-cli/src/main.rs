@@ -11,36 +11,13 @@ use icarus_cli::{
     // actions,
 };
 use tokio::{
-    io::{self, AsyncRead},
+    io,
+    signal,
     net::TcpStream
 };
 use icarus_wire::{IcarusState, CobsAccumulator, FeedResult};
 
 use clap::Parser;
-
-use std::time::Duration;
-
-// fn main() -> Result<()> {
-//     let args = Args::parse();
-
-//     let port = args.port.as_str();
-//     let baud = args.baud;
-//     let timeout = args.timeout;
-
-//     let ser = serialport::new(port, baud)
-//                 .flow_control(serialport::FlowControl::None)
-//                 .timeout(Duration::from_millis(timeout))
-//                 .open()
-//                 .with_context(|| format!("Failed to open serial port '{}'", port))?;
-
-//     match args.action {
-//         Action::Command => {},
-//         Action::Monitor => {},
-//         Action::Log(args) => actions::log::run(ser, args)?,
-//     }
-
-//     Ok(())
-// }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -50,6 +27,15 @@ async fn main() -> anyhow::Result<()> {
 
     let ip_addr = format!("{}:{}", ip, port);
 
+    tokio::spawn(recv_task(ip_addr));
+
+    // Wait to exit
+    signal::ctrl_c().await?;
+
+    Ok(())
+}
+
+async fn recv_task(ip_addr: String) -> anyhow::Result<()> {
     let stream = TcpStream::connect(ip_addr).await?;
 
     let mut raw_buf: [u8; 1024] = [0; 1024];
@@ -59,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
         stream.readable().await?;
 
         match stream.try_read(&mut raw_buf) {
-            Ok(0) => continue,
+            Ok(0) => break,
             Ok(n) => {
                 let mut window = &raw_buf[..n];
                 'cobs: while !window.is_empty() {
@@ -79,7 +65,5 @@ async fn main() -> anyhow::Result<()> {
             Err(e) => return Err(e.into()),
         }
     }
-
-
     Ok(())
 }

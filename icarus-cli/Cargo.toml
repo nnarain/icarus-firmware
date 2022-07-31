@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1", features = ["net", "time", "macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1", features = ["net", "time", "macros", "rt", "rt-multi-thread", "sync", "signal"] }
 futures-timer = "3.0"
 futures-util = "0.3"
 icarus-wire = {path = "../icarus-wire"}

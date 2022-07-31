@@ -36,8 +36,6 @@ use std::{
 
 use heapless::spsc::Queue;
 
-use serde::Deserialize;
-
 const WIFI_SSID: &str = env!("ICARUS_WIFI_SSID");
 const WIFI_PASS: &str = env!("ICARUS_WIFI_PASS");
 
@@ -148,20 +146,14 @@ fn main() -> anyhow::Result<()> {
 
     // Spawn wireless communication task
     thread::spawn(move || {
-        let mut buf: [u8; 64] = [0; 64];
         loop {
             if wireless_connected_read2.load(Ordering::Relaxed) {
                 // TODO: Error handling and state reporting
                 let listener = TcpListener::bind("0.0.0.0:5000").unwrap();
                 match listener.accept() {
                     Ok((stream, _)) => {
-                        // for state in state_reciever.try_iter() {
-                        //     if let Ok(used) = icarus_wire::encode(&state, &mut buf) {
-                        //         stream.write_all(used).expect("Faild to write bytes to stream");
-                        //     }
-                        // }
                         stream_tx.enqueue(stream).ok();
-                        break;
+                        // break;
                     },
                     Err(_) => {},
                 }
@@ -245,7 +237,6 @@ fn main() -> anyhow::Result<()> {
             thread::sleep(Duration::from_millis(duration));
         }
     });
-
 
     // Idle Task
     let mut stream: Option<TcpStream> = None;
