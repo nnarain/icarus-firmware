@@ -6,12 +6,12 @@
 //
 
 use clap::Parser;
-// use crate::actions::log;
+use crate::actions::log;
 
 #[derive(Parser, Debug)]
 pub enum Action {
     /// Read logs
-    // Log(log::Args),
+    Log(log::Args),
     /// Send a command
     Command,
     /// Monitor system state

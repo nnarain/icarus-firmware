@@ -5,14 +5,15 @@
 // @date Dec 12 2021
 //
 
-// use icarus_comms::{IcarusCommand, ppp::Transmitter};
 use icarus_cli::{
     cli::{Args, Action},
-    // actions,
+    actions,
 };
+
 use tokio::{
     io,
     signal,
+    sync::mpsc::{channel, Sender},
     net::TcpStream
 };
 use icarus_wire::{IcarusState, CobsAccumulator, FeedResult};
@@ -27,7 +28,17 @@ async fn main() -> anyhow::Result<()> {
 
     let ip_addr = format!("{}:{}", ip, port);
 
-    tokio::spawn(recv_task(ip_addr));
+    let (tx, rx) = channel::<IcarusState>(100);
+
+    // Spawn the main state receiver task
+    tokio::spawn(recv_task(ip_addr, tx));
+
+    match args.action {
+        Action::Log(args) => {
+            tokio::spawn(actions::log::run(args, rx));
+        }
+        _ => {}
+    }
 
     // Wait to exit
     signal::ctrl_c().await?;
@@ -35,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn recv_task(ip_addr: String) -> anyhow::Result<()> {
+async fn recv_task(ip_addr: String, sender: Sender<IcarusState>) -> anyhow::Result<()> {
     let stream = TcpStream::connect(ip_addr).await?;
 
     let mut raw_buf: [u8; 1024] = [0; 1024];
@@ -54,7 +65,8 @@ async fn recv_task(ip_addr: String) -> anyhow::Result<()> {
                         FeedResult::OverFull(new_window) => new_window,
                         FeedResult::DeserError(new_window) => new_window,
                         FeedResult::Success { data, remaining } => {
-                            println!("{:?}", data);
+                            // println!("{:?}", data);
+                            sender.send(data).await?;
 
                             remaining
                         }
