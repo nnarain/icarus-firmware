@@ -15,7 +15,7 @@ use icarus_core::{
     data::{AccelerometerData, GyroscopeData},
     EstimatorInput, StateEstimator,
 };
-use icarus_wire::{self, IcarusCommand, IcarusState};
+use icarus_wire::{self, IcarusCommand, IcarusState, CobsAccumulator, FeedResult};
 
 use esp_idf_hal::{delay::FreeRtos, i2c, ledc::*, peripherals::Peripherals, prelude::*};
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
@@ -23,7 +23,7 @@ use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, alway
 use mpu6050::Mpu6050;
 
 use std::{
-    io::{Read, Write},
+    io::{self, Read, Write},
     net::{TcpListener, TcpStream},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -110,6 +110,9 @@ fn main() -> anyhow::Result<()> {
     // -----------------------------------------------------------------------------------------------------------------
 
     // Setup task queues and shared state
+    static mut COMMAND_QUEUE: Queue<IcarusCommand, 2> = Queue::new();
+    let (mut cmd_tx, mut cmd_rx) = unsafe { COMMAND_QUEUE.split() };
+
     static mut STATE_QUEUE: Queue<IcarusState, 4> = Queue::new();
     let (mut state_tx, mut state_rx) = unsafe { STATE_QUEUE.split() };
 
@@ -152,8 +155,11 @@ fn main() -> anyhow::Result<()> {
                 let listener = TcpListener::bind("0.0.0.0:5000").unwrap();
                 match listener.accept() {
                     Ok((stream, _)) => {
+                        // Configure the stream to be non-blocking
+                        stream.set_nonblocking(true).ok();
+                        stream.set_read_timeout(Some(Duration::from_millis(10))).ok();
+
                         stream_tx.enqueue(stream).ok();
-                        // break;
                     },
                     Err(_) => {},
                 }
@@ -240,7 +246,10 @@ fn main() -> anyhow::Result<()> {
 
     // Idle Task
     let mut stream: Option<TcpStream> = None;
-    let mut send_buf: [u8; 128] = [0; 128];
+    // Raw data buffer for store pre-deserialized data
+    let mut raw_buf: [u8; 128] = [0; 128];
+    // COBS deooder
+    let mut cmd_decoder: CobsAccumulator<64> = CobsAccumulator::new();
 
     loop {
         // Attempt to get the connected stream
@@ -248,9 +257,42 @@ fn main() -> anyhow::Result<()> {
             stream = Some(s)
         }
 
+        // Read commands from the host
+        stream = if let Some(mut stream) = stream {
+            match stream.read(&mut raw_buf) {
+                Ok(0) => Some(stream),
+                Ok(n) => {
+                    let mut window = &raw_buf[..n];
+                    'cobs: while !window.is_empty() {
+                        window = match cmd_decoder.feed::<IcarusCommand>(window) {
+                            FeedResult::Consumed => break 'cobs,
+                            FeedResult::OverFull(new_window) => new_window,
+                            FeedResult::DeserError(new_window) => new_window,
+                            FeedResult::Success { data, remaining } => {
+                                // cmd_tx.enqueue(data).ok();
+                                println!("{:?}", data);
+                                remaining
+                            }
+                        }
+                    }
+
+                    Some(stream)
+                },
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Some(stream),
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                    None
+                },
+            }
+        }
+        else {
+            None
+        };
+
+        // Write latest sensor state to the host
         if let Some(ref mut stream) = stream {
             while let Some(state) = state_rx.dequeue() {
-                if let Ok(used) = icarus_wire::encode(&state, &mut send_buf) {
+                if let Ok(used) = icarus_wire::encode(&state, &mut raw_buf) {
                     stream.write_all(used).ok();
                 }
             }

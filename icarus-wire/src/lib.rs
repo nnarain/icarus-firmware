@@ -45,5 +45,5 @@ pub enum IcarusState {
 /// Icarus command channels
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum IcarusCommand {
-    CycleLed,
+    Throttle(i8, i8, i8),
 }
