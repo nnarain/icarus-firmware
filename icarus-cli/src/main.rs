@@ -30,21 +30,25 @@ async fn main() -> anyhow::Result<()> {
 
     let (tx, rx) = channel::<IcarusState>(100);
 
-    // Spawn the main state receiver task
-    tokio::spawn(recv_task(ip_addr, tx));
-
     match args.action {
         Action::Log(args) => {
+            tokio::spawn(recv_task(ip_addr, tx));
             tokio::spawn(actions::log::run(args, rx));
+
+            // Wait to exit
+            signal::ctrl_c().await?;
+        }
+        Action::Command(args) => {
+            let task = tokio::spawn(actions::command::run(args, ip_addr));
+            tokio::join!(task).0??;
         }
         _ => {}
     }
 
-    // Wait to exit
-    signal::ctrl_c().await?;
-
     Ok(())
 }
+
+// async fn send_task()
 
 async fn recv_task(ip_addr: String, sender: Sender<IcarusState>) -> anyhow::Result<()> {
     let stream = TcpStream::connect(ip_addr).await?;
@@ -65,7 +69,6 @@ async fn recv_task(ip_addr: String, sender: Sender<IcarusState>) -> anyhow::Resu
                         FeedResult::OverFull(new_window) => new_window,
                         FeedResult::DeserError(new_window) => new_window,
                         FeedResult::Success { data, remaining } => {
-                            // println!("{:?}", data);
                             sender.send(data).await?;
 
                             remaining
