@@ -32,6 +32,7 @@ void setup() {
   }
 
   server.begin();
+  Serial.println("Server setup complete");
 }
 
 void loop() {
@@ -39,6 +40,8 @@ void loop() {
 
   const auto attitude = sensors.getAttitude();
   Serial.printf("(%0.2f, %0.2f, %0.2f)\n", attitude.pitch, attitude.roll, attitude.yaw);
+
+  server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
 
   delay(100);
 }
