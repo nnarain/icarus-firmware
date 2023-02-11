@@ -11,9 +11,11 @@
 
 #include <RotorController.hpp>
 #include <Sensors.hpp>
+#include <IcarusServer.hpp>
 
 RotorController rtrctl;
 Sensors sensors;
+IcarusServer server;
 
 
 void setup() {
@@ -28,6 +30,8 @@ void setup() {
   {
     Serial.println("Sensor setup complete!");
   }
+
+  server.begin();
 }
 
 void loop() {
