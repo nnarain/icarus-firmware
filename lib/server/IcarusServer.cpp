@@ -32,7 +32,7 @@ void IcarusServer::begin()
     sensor_service_ = server_->createService(ICARUS_SENSOR_SERVICE_UUID);
     attitude_characteristic_ = sensor_service_->createCharacteristic(
                                             ICARUS_SENSOR_SERVICE_CHARACTERISTIC_ATTITUDE_UUID,
-                                            NIMBLE_PROPERTY::READ
+                                            NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
                                         );
     // attitude_desc_ = attitude_characteristic_->createDescriptor("ATTI", NIMBLE_PROPERTY::READ, 10);
     // attitude_desc_->setValue("Attitude estimation");
@@ -63,4 +63,5 @@ void IcarusServer::serializeAttitude()
 {
     memcpy(attitude_service_buffer_, &attitude_data_, sizeof(AttitudeServiceData));
     attitude_characteristic_->setValue(attitude_service_buffer_, sizeof(attitude_service_buffer_));
+    attitude_characteristic_->notify();
 }
