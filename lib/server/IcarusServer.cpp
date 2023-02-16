@@ -7,6 +7,8 @@
 #include <Arduino.h>
 #include <IcarusServer.hpp>
 
+#include <Serde.hpp>
+
 #define ICARUS_SENSOR_SERVICE_UUID                         "243a63eb-17cc-444c-b3bd-1302b399a7a0"
 #define ICARUS_SENSOR_SERVICE_CHARACTERISTIC_ATTITUDE_UUID "68af1093-1df9-41ac-98e8-d524a025b4b9"
 
@@ -34,8 +36,7 @@ void IcarusServer::begin()
                                             ICARUS_SENSOR_SERVICE_CHARACTERISTIC_ATTITUDE_UUID,
                                             NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY
                                         );
-    // attitude_desc_ = attitude_characteristic_->createDescriptor("ATTI", NIMBLE_PROPERTY::READ, 10);
-    // attitude_desc_->setValue("Attitude estimation");
+
     updateAttitude(0, 0, 0);
 
     // Starting Services
@@ -61,7 +62,12 @@ void IcarusServer::updateAttitude(float pitch, float roll, float yaw)
 
 void IcarusServer::serializeAttitude()
 {
-    memcpy(attitude_service_buffer_, &attitude_data_, sizeof(AttitudeServiceData));
+    uint8_t* buf = attitude_service_buffer_;
+
+    buf += serde::serialize(buf, attitude_data_.pitch);
+    buf += serde::serialize(buf, attitude_data_.roll);
+    buf += serde::serialize(buf, attitude_data_.yaw);
+
     attitude_characteristic_->setValue(attitude_service_buffer_, sizeof(attitude_service_buffer_));
     attitude_characteristic_->notify();
 }
