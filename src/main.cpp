@@ -21,6 +21,8 @@ IcarusServer server;
 void setup() {
   Serial.begin(115200);
 
+  rtrctl.begin(ICARUS_IO1, ICARUS_IO2, ICARUS_IO3, ICARUS_IO4);
+
   if (!sensors.begin(ICARUS_I2C_SCL, ICARUS_I2C_SDA))
   {
     Serial.println("Failed to initialize sensors!");
