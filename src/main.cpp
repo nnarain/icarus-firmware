@@ -45,5 +45,8 @@ void loop() {
 
   server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
 
+  const auto& throttle = server.getThrottle();
+  Serial.printf("(%d, %d, %d, %d)\n", throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
+
   delay(100);
 }
