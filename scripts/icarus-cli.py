@@ -1,5 +1,6 @@
 import asyncio
 
+import time
 import struct
 from bleak import BleakScanner, BleakClient
 
@@ -17,9 +18,15 @@ async def main(args):
     async with BleakClient(device) as client:
         try:
             while True:
-                service_data = await client.read_gatt_char('68af1093-1df9-41ac-98e8-d524a025b4b9')
-                (pitch, roll, yaw) = struct.unpack('<fff', service_data)
-                print(f'({pitch}, {roll}, {yaw})')
+                # service_data = await client.read_gatt_char('68af1093-1df9-41ac-98e8-d524a025b4b9')
+                # (pitch, roll, yaw) = struct.unpack('<fff', service_data)
+                # print(f'({pitch}, {roll}, {yaw})')
+
+                throttle = (1.0, 2.0, 3.0, 4.0)
+                print('writing throttle')
+                await client.write_gatt_char('c346b87e-9a11-4a56-9a53-e421c8ade193', struct.pack('<ffff', throttle))
+                time.sleep(1)
+
         except KeyboardInterrupt:
             print("exit")
             exit(0)
