@@ -49,8 +49,8 @@ bool RotorController::begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rt
 
 void RotorController::setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_t t4)
 {
-    ledcWrite(RTRCTL_CHNL1, t1);
-    ledcWrite(RTRCTL_CHNL2, t2);
-    ledcWrite(RTRCTL_CHNL3, t3);
-    ledcWrite(RTRCTL_CHNL4, t4);
+    ledcWrite(RTRCTL_CHNL1, t1 + THROTTLE_MIN);
+    ledcWrite(RTRCTL_CHNL2, t2 + THROTTLE_MIN);
+    ledcWrite(RTRCTL_CHNL3, t3 + THROTTLE_MIN);
+    ledcWrite(RTRCTL_CHNL4, t4 + THROTTLE_MIN);
 }

@@ -40,13 +40,31 @@ void setup() {
 void loop() {
   sensors.update();
 
-  const auto attitude = sensors.getAttitude();
-  Serial.printf("(%0.2f, %0.2f, %0.2f)\n", attitude.pitch, attitude.roll, attitude.yaw);
+  // const auto attitude = sensors.getAttitude();
+  // Serial.printf("(%0.2f, %0.2f, %0.2f)\n", attitude.pitch, attitude.roll, attitude.yaw);
 
-  server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
+  // server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
 
-  const auto& throttle = server.getThrottle();
-  Serial.printf("(%d, %d, %d, %d)\n", throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
+  // const auto& throttle = server.getThrottle();
+  // Serial.printf("(%d, %d, %d, %d)\n", throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
 
-  delay(100);
+  rtrctl.setThrottle(10, 0, 0, 0);
+  delay(5000);
+  rtrctl.setThrottle(0, 0, 0, 0);
+  delay(5000);
+
+  rtrctl.setThrottle(0, 10, 0, 0);
+  delay(5000);
+  rtrctl.setThrottle(0, 0, 0, 0);
+  delay(5000);
+
+  rtrctl.setThrottle(0, 0, 10, 0);
+  delay(5000);
+  rtrctl.setThrottle(0, 0, 0, 0);
+  delay(5000);
+
+  rtrctl.setThrottle(0, 0, 0, 10);
+  delay(5000);
+  rtrctl.setThrottle(0, 0, 0, 0);
+  delay(5000);
 }
