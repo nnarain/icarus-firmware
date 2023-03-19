@@ -16,6 +16,29 @@
 #define ICARUS_THROTTLE_SERVICE_CHARACTERISTIC_THROTTLE_UUID "c346b87e-9a11-4a56-9a53-e421c8ade193"
 
 /**
+ * @brief Connection status updater
+ *
+ */
+class ConnectionStateUpdater : public NimBLEServerCallbacks
+{
+public:
+    ConnectionStateUpdater(bool& connected) : connected_{connected} {}
+
+    void onConnect(NimBLEServer* server) override
+    {
+        connected_ = true;
+    }
+
+    void onDisconnect(NimBLEServer* server) override
+    {
+        connected_ = false;
+    }
+
+private:
+    bool& connected_;
+};
+
+/**
  * @brief Construct a new Icarus Server:: Icarus Server object
  *
  */
@@ -55,6 +78,7 @@ void IcarusServer::begin()
 
     // Setup the server
     server_ = NimBLEDevice::createServer();
+    server_->setCallbacks(new ConnectionStateUpdater{connected_});
 
     // Setup services
 
@@ -109,6 +133,11 @@ void IcarusServer::serializeAttitude()
 
     attitude_characteristic_->setValue(attitude_service_buffer_, sizeof(attitude_service_buffer_));
     attitude_characteristic_->notify();
+}
+
+bool IcarusServer::isConnected() const
+{
+    return connected_;
 }
 
 const Throttle& IcarusServer::getThrottle() const

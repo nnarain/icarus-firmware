@@ -48,23 +48,28 @@ void loop() {
   // const auto& throttle = server.getThrottle();
   // Serial.printf("(%d, %d, %d, %d)\n", throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
 
-  rtrctl.setThrottle(10, 0, 0, 0);
-  delay(5000);
-  rtrctl.setThrottle(0, 0, 0, 0);
-  delay(5000);
+  // rtrctl.setThrottle(10, 0, 0, 0);
+  // delay(5000);
+  // rtrctl.setThrottle(0, 0, 0, 0);
+  // delay(5000);
 
-  rtrctl.setThrottle(0, 10, 0, 0);
-  delay(5000);
-  rtrctl.setThrottle(0, 0, 0, 0);
-  delay(5000);
+  // rtrctl.setThrottle(0, 10, 0, 0);
+  // delay(5000);
+  // rtrctl.setThrottle(0, 0, 0, 0);
+  // delay(5000);
 
-  rtrctl.setThrottle(0, 0, 10, 0);
-  delay(5000);
-  rtrctl.setThrottle(0, 0, 0, 0);
-  delay(5000);
+  // rtrctl.setThrottle(0, 0, 10, 0);
+  // delay(5000);
+  // rtrctl.setThrottle(0, 0, 0, 0);
+  // delay(5000);
 
-  rtrctl.setThrottle(0, 0, 0, 10);
-  delay(5000);
-  rtrctl.setThrottle(0, 0, 0, 0);
-  delay(5000);
+  // rtrctl.setThrottle(0, 0, 0, 10);
+  // delay(5000);
+  // rtrctl.setThrottle(0, 0, 0, 0);
+  // delay(5000);
+
+  const auto connected = server.isConnected();
+  Serial.printf("connected: %d\n", (int)connected);
+
+  delay(1000);
 }

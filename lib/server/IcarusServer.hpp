@@ -40,12 +40,14 @@ public:
 
     void updateAttitude(float pitch, float roll, float yaw);
 
+    bool isConnected() const;
     const Throttle& getThrottle() const;
 
 private:
     void serializeAttitude();
 
     NimBLEServer* server_{nullptr};
+    bool connected_{false};
 
     // Sensor Service
     NimBLEService* sensor_service_{nullptr};
