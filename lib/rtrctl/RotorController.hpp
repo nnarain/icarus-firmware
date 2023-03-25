@@ -8,6 +8,19 @@
 
 #include <cstdint>
 
+// 200Hz -> 5ms
+// 8-bit resolution -> 255 steps
+// 5ms / 255 -> 0.0196078431372549 ms per step
+//
+// Max Throttle -> 2ms pulse width
+// 2ms / 0.0196078431372549 = 102
+//
+// Min Throttle -> 1ms pulse width
+// 1ms / 0.0196078431372549 = 51
+
+#define THROTTLE_MIN 51
+#define THROTTLE_MAX 102
+
 /**
  * @brief Throttle control for rotors
  *

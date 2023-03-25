@@ -15,19 +15,6 @@
 #define PWM_FREQ 200
 #define PWM_RESOLUTION 8
 
-// 200Hz -> 5ms
-// 8-bit resolution -> 255 steps
-// 5ms / 255 -> 0.0196078431372549 ms per step
-//
-// Max Throttle -> 2ms pulse width
-// 2ms / 0.0196078431372549 = 102
-//
-// Min Throttle -> 1ms pulse width
-// 1ms / 0.0196078431372549 = 51
-
-#define THROTTLE_MIN 51
-#define THROTTLE_MAX 102
-
 bool RotorController::begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rtr4)
 {
     // Setup PWM channels
