@@ -17,6 +17,9 @@ RotorController rtrctl;
 Sensors sensors;
 IcarusServer server;
 
+uint16_t throttle = 0;
+uint32_t last_command_time_ms = 0;
+
 
 void setup() {
   Serial.begin(115200);
@@ -39,32 +42,23 @@ void setup() {
 
 void loop() {
   sensors.update();
+  const auto attitude = sensors.getAttitude();
+  server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
 
-  // const auto attitude = sensors.getAttitude();
-  // Serial.printf("(%0.2f, %0.2f, %0.2f)\n", attitude.pitch, attitude.roll, attitude.yaw);
+  if (server.isConnected())
+  {
+    // Gradually increase throttle
+    const auto now = millis();
+    if (now - last_command_time_ms >= 1000)
+    {
+      rtrctl.setThrottle(throttle, throttle, throttle, throttle);
 
-  // server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
-
-  // const auto& throttle = server.getThrottle();
-  // Serial.printf("(%d, %d, %d, %d)\n", throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
-
-  rtrctl.setThrottle(10, 0, 0, 0);
-  delay(5000);
-  rtrctl.setThrottle(0, 0, 0, 0);
-  delay(5000);
-
-  rtrctl.setThrottle(0, 10, 0, 0);
-  delay(5000);
-  rtrctl.setThrottle(0, 0, 0, 0);
-  delay(5000);
-
-  rtrctl.setThrottle(0, 0, 10, 0);
-  delay(5000);
-  rtrctl.setThrottle(0, 0, 0, 0);
-  delay(5000);
-
-  rtrctl.setThrottle(0, 0, 0, 10);
-  delay(5000);
-  rtrctl.setThrottle(0, 0, 0, 0);
-  delay(5000);
+      throttle = (throttle + 1) % THROTTLE_MAX;
+      last_command_time_ms = now;
+    }
+  }
+  else
+  {
+    rtrctl.setThrottle(0, 0, 0, 0);
+  }
 }
