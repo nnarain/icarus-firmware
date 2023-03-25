@@ -47,15 +47,8 @@ void loop() {
 
   if (server.isConnected())
   {
-    // Gradually increase throttle
-    const auto now = millis();
-    if (now - last_command_time_ms >= 1000)
-    {
-      rtrctl.setThrottle(throttle, throttle, throttle, throttle);
-
-      throttle = (throttle + 1) % THROTTLE_MAX;
-      last_command_time_ms = now;
-    }
+    const auto throttle = server.getThrottle();
+    rtrctl.setThrottle(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
   }
   else
   {
