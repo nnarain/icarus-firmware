@@ -48,10 +48,10 @@ void loop() {
   if (server.isConnected())
   {
     const auto throttle = server.getThrottle();
-    rtrctl.setThrottle(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
+    rtrctl.setCommand(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
   }
   else
   {
-    rtrctl.setThrottle(0, 0, 0, 0);
+    rtrctl.setCommand(0, 0, 0, 0);
   }
 }
