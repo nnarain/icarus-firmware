@@ -13,45 +13,46 @@
 #include <Sensors.hpp>
 #include <IcarusServer.hpp>
 
-RotorController rtrctl;
-Sensors sensors;
-IcarusServer server;
+//RotorController rtrctl;
 
-uint16_t throttle = 0;
-uint32_t last_command_time_ms = 0;
+#define RTR_PIN 10
+#define LED_PIN 7
 
+#define RTRCTL_CHNL1 0
+#define PWM_FREQ 200
+#define PWM_RESOLUTION 8
 
 void setup() {
   Serial.begin(115200);
 
-  rtrctl.begin(ICARUS_IO1, ICARUS_IO2, ICARUS_IO3, ICARUS_IO4);
+  // LED
+  pinMode(LED_PIN, OUTPUT);
 
-  if (!sensors.begin(ICARUS_I2C_SCL, ICARUS_I2C_SDA))
-  {
-    Serial.println("Failed to initialize sensors!");
-    while(1){}
-  }
-  else
-  {
-    Serial.println("Sensor setup complete!");
-  }
+  // PWM setup
+  ledcSetup(RTRCTL_CHNL1, PWM_FREQ, PWM_RESOLUTION);
+  ledcAttachPin(RTR_PIN, RTRCTL_CHNL1);
 
-  server.begin();
-  Serial.println("Server setup complete");
+  // Arm
+  ledcWrite(RTRCTL_CHNL1, THROTTLE_MIN);
+  delay(10000);
+  digitalWrite(LED_PIN, HIGH);
+
+  // Command
+  ledcWrite(RTRCTL_CHNL1, THROTTLE_MIN + 10);
 }
 
 void loop() {
-  sensors.update();
-  const auto attitude = sensors.getAttitude();
-  server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
+  // sensors.update();
+  // const auto attitude = sensors.getAttitude();
+  // server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
 
-  if (server.isConnected())
-  {
-    const auto throttle = server.getThrottle();
-    rtrctl.setCommand(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
-  }
-  else
-  {
-    rtrctl.setCommand(0, 0, 0, 0);
-  }
+  // if (server.isConnected())
+  // {
+  //   const auto throttle = server.getThrottle();
+  //   rtrctl.setCommand(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
+  // }
+  // else
+  // {
+  //   rtrctl.setCommand(0, 0, 0, 0);
+  // }
 }

@@ -44,8 +44,10 @@ public:
     void setCommand(int16_t t1, int16_t t2, int16_t t3, int16_t t4);
     // void update();
 
-private:
     void setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_t t4);
+
+private:
+    
 
     // Pitch PID Controller
     double pitch_input_{0.0};
