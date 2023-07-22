@@ -39,10 +39,12 @@ public:
 
     bool begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rtr4);
 
+    void arm();
+    void disarm();
+
     void update(double pitch, double roll, double yaw);
 
     void setCommand(int16_t t1, int16_t t2, int16_t t3, int16_t t4);
-    // void update();
 
 private:
     void setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_t t4);

@@ -45,9 +45,21 @@ bool RotorController::begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rt
     ledcAttachPin(rtr3, RTRCTL_CHNL3);
     ledcAttachPin(rtr4, RTRCTL_CHNL4);
 
-    setThrottle(THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN);
+    // Arm the ESC
+    arm();
 
     return true;
+}
+
+
+void RotorController::arm()
+{
+    setThrottle(THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN);
+}
+
+void RotorController::disarm()
+{
+    setThrottle(0, 0, 0, 0);
 }
 
 void RotorController::update(double pitch, double roll, double yaw)

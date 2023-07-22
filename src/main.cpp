@@ -52,6 +52,14 @@ void loop() {
   }
   else
   {
-    rtrctl.setCommand(0, 0, 0, 0);
+    rtrctl.disarm();
   }
+
+  // Get the estimated state
+  const auto pitch = attitude.pitch;
+  const auto roll = attitude.roll;
+  const auto yaw = attitude.yaw;
+
+  // Update the controller with the estimated state
+  rtrctl.update(pitch, roll, yaw);
 }
