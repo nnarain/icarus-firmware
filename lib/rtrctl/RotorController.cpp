@@ -14,7 +14,7 @@
 #define RTRCTL_CHNL4 3
 
 #define PWM_FREQ 200
-#define PWM_RESOLUTION 8
+#define PWM_RESOLUTION 14
 
 #define PITCH_MIN -10
 #define PITCH_MAX 10
