@@ -50,5 +50,5 @@ void Sensors::update()
 
 attitude_t Sensors::getAttitude()
 {
-    return mpu.getAttitude();
+    return mpu.getAttitude(UNITS_DEGREES);
 }
