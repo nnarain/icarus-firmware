@@ -106,7 +106,7 @@ void RotorController::setCommand(int16_t pitch, int16_t roll, int16_t yaw, int16
     // TODO(nnarain): Yaw maybe angular rate control...
     yaw_setpoint_ = utils::mapf((double)yaw, -100.0, 100.0, -10.0, 10.0);
 
-    throttle_ = (double)throttle;
+    throttle_ = utils::mapf((double)throttle, 0.0, 100.0, (double)THROTTLE_MIN, (double)THROTTLE_MAX);
 }
 
 void RotorController::setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_t t4)
