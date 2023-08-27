@@ -12,13 +12,16 @@
 #include <RotorController.hpp>
 #include <Sensors.hpp>
 #include <IcarusServer.hpp>
+#include <StatLed.hpp>
 
 RotorController rtrctl;
 Sensors sensors;
 IcarusServer server;
+StatLed led{ICARUS_STAT_LED};
 
 uint16_t throttle = 0;
 uint32_t last_command_time_ms = 0;
+uint32_t last_connected_time_ms = 0;
 
 
 void setup() {
@@ -38,6 +41,8 @@ void setup() {
 
   server.begin();
   Serial.println("Server setup complete");
+
+  led.begin();
 }
 
 void loop() {
@@ -49,10 +54,14 @@ void loop() {
   {
     const auto throttle = server.getThrottle();
     rtrctl.setCommand(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
+
+    led.showConnected();
   }
   else
   {
     rtrctl.disarm();
+
+    led.showDisconnected();
   }
 
   // Get the estimated state
