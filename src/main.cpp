@@ -26,6 +26,7 @@ uint32_t last_connected_time_ms = 0;
 
 void setup() {
   Serial.begin(115200);
+  Serial.setPins(ICARUS_UART_RX, ICARUS_UART_TX);
 
   rtrctl.begin(ICARUS_IO1, ICARUS_IO2, ICARUS_IO3, ICARUS_IO4);
 
