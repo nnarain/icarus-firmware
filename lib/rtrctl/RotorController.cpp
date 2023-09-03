@@ -25,10 +25,13 @@
 
 
 RotorController::RotorController()
-    : pitch_pid_{&pitch_input_, &pitch_setpoint_, &pitch_output_, KP, KI, KD, DIRECT}
-    , roll_pid_{&roll_input_, &roll_setpoint_, &roll_output_, KP, KI, KD, DIRECT}
-    , yaw_pid_{&yaw_input_, &yaw_setpoint_, &yaw_output_, KP, KI, KD, DIRECT}
+    : pitch_pid_{&pitch_input_, &pitch_output_, &pitch_setpoint_, KP, KI, KD, DIRECT}
+    , roll_pid_{&roll_input_, &roll_output_, &roll_setpoint_, KP, KI, KD, DIRECT}
+    , yaw_pid_{&yaw_input_, &yaw_output_, &yaw_setpoint_, KP, KI, KD, DIRECT}
 {
+    pitch_pid_.SetMode(AUTOMATIC);
+    roll_pid_.SetMode(AUTOMATIC);
+    yaw_pid_.SetMode(AUTOMATIC);
 }
 
 bool RotorController::begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rtr4)
@@ -74,8 +77,8 @@ void RotorController::update(double pitch, double roll, double yaw)
 
     const auto output_updated = pitch_updated || roll_updated;
 
-    if (output_updated)
-    {
+    // if (output_updated)
+    // {
         /*
             Rotor Layout
 
@@ -91,7 +94,7 @@ void RotorController::update(double pitch, double roll, double yaw)
         const auto t4 = throttle_ - pitch_output_ - roll_output_ - yaw_output_;
 
         setThrottle(t1, t2, t3, t4);
-    }
+    // }
 }
 
 void RotorController::setCommand(int16_t pitch, int16_t roll, int16_t yaw, int16_t throttle)
