@@ -51,18 +51,38 @@ void loop() {
   const auto attitude = sensors.getAttitude();
   server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
 
-  if (server.isConnected())
-  {
-    const auto throttle = server.getThrottle();
-    rtrctl.setCommand(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
+  // if (server.isConnected())
+  // {
+  //   const auto throttle = server.getThrottle();
+  //   rtrctl.setCommand(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
 
+  //   led.showConnected();
+  // }
+  // else
+  // {
+  //   rtrctl.disarm();
+
+  //   led.showDisconnected();
+  // }
+
+  const auto now = millis();
+
+  if (now > 10000)
+  {
     led.showConnected();
-  }
-  else
-  {
-    rtrctl.disarm();
 
-    led.showDisconnected();
+    if (now >= (last_command_time_ms + 100) && throttle < 50)
+    {
+      rtrctl.setCommand(0, 0, 0, throttle);
+      throttle += 1;
+
+      // if (throttle > 100)
+      // {
+      //   throttle = 0;
+      // }
+
+      last_command_time_ms = now;
+    }
   }
 
   // Get the estimated state

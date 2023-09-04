@@ -34,9 +34,10 @@
 class RotorController
 {
 public:
-    static constexpr double KP = 2.0;
-    static constexpr double KI = 5.0;
-    static constexpr double KD = 1.0;
+    // static constexpr double KP = 17.5; // osc start
+    static constexpr double KP = 8.75;
+    static constexpr double KI = 3.5;
+    static constexpr double KD = 0.1;
 
     RotorController();
     ~RotorController() = default;

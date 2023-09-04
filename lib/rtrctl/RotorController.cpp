@@ -32,6 +32,10 @@ RotorController::RotorController()
     pitch_pid_.SetMode(AUTOMATIC);
     roll_pid_.SetMode(AUTOMATIC);
     yaw_pid_.SetMode(AUTOMATIC);
+
+    pitch_pid_.SetOutputLimits(-1000.0, 1000.0);
+    roll_pid_.SetOutputLimits(-1000.0, 1000.0);
+    yaw_pid_.SetOutputLimits(-1000.0, 1000.0);
 }
 
 bool RotorController::begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rtr4)
@@ -72,10 +76,13 @@ void RotorController::update(double pitch, double roll, double yaw)
     yaw_input_ = yaw;
 
     const auto pitch_updated = pitch_pid_.Compute();
-    const auto roll_updated = roll_pid_.Compute();
+
+    Serial.printf("throttle: %0.2f, pitch out: %0.2f\n", throttle_, pitch_output_);
+
+    // const auto roll_updated = roll_pid_.Compute();
     // const auto yaw_updated = yaw_pid_.Compute();
 
-    const auto output_updated = pitch_updated || roll_updated;
+    // const auto output_updated = pitch_updated || roll_updated;
 
     // if (output_updated)
     // {
@@ -119,6 +126,8 @@ void RotorController::setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_
     const uint16_t t2_actual = constrain(t2, THROTTLE_MIN, THROTTLE_MAX);
     const uint16_t t3_actual = constrain(t3, THROTTLE_MIN, THROTTLE_MAX);
     const uint16_t t4_actual = constrain(t4, THROTTLE_MIN, THROTTLE_MAX);
+
+    Serial.printf("t: %d, %d, %d, %d\n", t1_actual, t2_actual, t3_actual, t4_actual);
 
     ledcWrite(RTRCTL_CHNL1, t1_actual);
     ledcWrite(RTRCTL_CHNL2, t2_actual);
