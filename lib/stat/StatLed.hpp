@@ -7,13 +7,21 @@
 
 #pragma once
 
+#include <Adafruit_NeoPixel.h>
+
 class StatLed
 {
 public:
-    StatLed() = default;
+    StatLed(uint8_t pin);
     ~StatLed() = default;
 
     bool begin();
 
+    void showConnected();
+    void showDisconnected();
+
 private:
+    void setColor(uint8_t r, uint8_t g, uint8_t b);
+
+    Adafruit_NeoPixel stat_;
 };

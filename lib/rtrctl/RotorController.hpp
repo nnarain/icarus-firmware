@@ -11,17 +11,21 @@
 #include <cstdint>
 
 // 200Hz -> 5ms
-// 8-bit resolution -> 255 steps
-// 5ms / 255 -> 0.0196078431372549 ms per step
+// 14-bit resolution -> 16383 steps
+// 5ms / 16383 -> 3.05e-7 ms per step
 //
 // Max Throttle -> 2ms pulse width
-// 2ms / 0.0196078431372549 = 102
+// 2ms / 3.05e-7 = 6553
 //
 // Min Throttle -> 1ms pulse width
-// 1ms / 0.0196078431372549 = 51
+// 1ms / 3.05e-7 = 3276
 
-#define THROTTLE_MIN 51
-#define THROTTLE_MAX 102
+// #define THROTTLE_MIN 51
+// #define THROTTLE_MAX 102
+
+#define THROTTLE_MIN 3276
+#define THROTTLE_MAX 6553
+
 
 /**
  * @brief Throttle control for rotors
@@ -30,19 +34,22 @@
 class RotorController
 {
 public:
-    static constexpr double KP = 2.0;
-    static constexpr double KI = 5.0;
-    static constexpr double KD = 1.0;
+    // static constexpr double KP = 17.5; // osc start
+    static constexpr double KP = 8.75;
+    static constexpr double KI = 3.5;
+    static constexpr double KD = 0.1;
 
     RotorController();
     ~RotorController() = default;
 
     bool begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rtr4);
 
+    void arm();
+    void disarm();
+
     void update(double pitch, double roll, double yaw);
 
     void setCommand(int16_t t1, int16_t t2, int16_t t3, int16_t t4);
-    // void update();
 
 private:
     void setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_t t4);

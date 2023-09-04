@@ -14,7 +14,7 @@
 #define RTRCTL_CHNL4 3
 
 #define PWM_FREQ 200
-#define PWM_RESOLUTION 8
+#define PWM_RESOLUTION 14
 
 #define PITCH_MIN -10
 #define PITCH_MAX 10
@@ -25,10 +25,17 @@
 
 
 RotorController::RotorController()
-    : pitch_pid_{&pitch_input_, &pitch_setpoint_, &pitch_output_, KP, KI, KD, DIRECT}
-    , roll_pid_{&roll_input_, &roll_setpoint_, &roll_output_, KP, KI, KD, DIRECT}
-    , yaw_pid_{&yaw_input_, &yaw_setpoint_, &yaw_output_, KP, KI, KD, DIRECT}
+    : pitch_pid_{&pitch_input_, &pitch_output_, &pitch_setpoint_, KP, KI, KD, DIRECT}
+    , roll_pid_{&roll_input_, &roll_output_, &roll_setpoint_, KP, KI, KD, DIRECT}
+    , yaw_pid_{&yaw_input_, &yaw_output_, &yaw_setpoint_, KP, KI, KD, DIRECT}
 {
+    pitch_pid_.SetMode(AUTOMATIC);
+    roll_pid_.SetMode(AUTOMATIC);
+    yaw_pid_.SetMode(AUTOMATIC);
+
+    pitch_pid_.SetOutputLimits(-1000.0, 1000.0);
+    roll_pid_.SetOutputLimits(-1000.0, 1000.0);
+    yaw_pid_.SetOutputLimits(-1000.0, 1000.0);
 }
 
 bool RotorController::begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rtr4)
@@ -45,9 +52,21 @@ bool RotorController::begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rt
     ledcAttachPin(rtr3, RTRCTL_CHNL3);
     ledcAttachPin(rtr4, RTRCTL_CHNL4);
 
-    setThrottle(THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN);
+    // Arm the ESC
+    arm();
 
     return true;
+}
+
+
+void RotorController::arm()
+{
+    setThrottle(THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN);
+}
+
+void RotorController::disarm()
+{
+    setThrottle(0, 0, 0, 0);
 }
 
 void RotorController::update(double pitch, double roll, double yaw)
@@ -57,13 +76,16 @@ void RotorController::update(double pitch, double roll, double yaw)
     yaw_input_ = yaw;
 
     const auto pitch_updated = pitch_pid_.Compute();
-    const auto roll_updated = roll_pid_.Compute();
+
+    Serial.printf("throttle: %0.2f, pitch out: %0.2f\n", throttle_, pitch_output_);
+
+    // const auto roll_updated = roll_pid_.Compute();
     // const auto yaw_updated = yaw_pid_.Compute();
 
-    const auto output_updated = pitch_updated || roll_updated;
+    // const auto output_updated = pitch_updated || roll_updated;
 
-    if (output_updated)
-    {
+    // if (output_updated)
+    // {
         /*
             Rotor Layout
 
@@ -79,7 +101,7 @@ void RotorController::update(double pitch, double roll, double yaw)
         const auto t4 = throttle_ - pitch_output_ - roll_output_ - yaw_output_;
 
         setThrottle(t1, t2, t3, t4);
-    }
+    // }
 }
 
 void RotorController::setCommand(int16_t pitch, int16_t roll, int16_t yaw, int16_t throttle)
@@ -94,7 +116,7 @@ void RotorController::setCommand(int16_t pitch, int16_t roll, int16_t yaw, int16
     // TODO(nnarain): Yaw maybe angular rate control...
     yaw_setpoint_ = utils::mapf((double)yaw, -100.0, 100.0, -10.0, 10.0);
 
-    throttle_ = (double)throttle;
+    throttle_ = utils::mapf((double)throttle, 0.0, 100.0, (double)THROTTLE_MIN, (double)THROTTLE_MAX);
 }
 
 void RotorController::setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_t t4)
@@ -104,6 +126,8 @@ void RotorController::setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_
     const uint16_t t2_actual = constrain(t2, THROTTLE_MIN, THROTTLE_MAX);
     const uint16_t t3_actual = constrain(t3, THROTTLE_MIN, THROTTLE_MAX);
     const uint16_t t4_actual = constrain(t4, THROTTLE_MIN, THROTTLE_MAX);
+
+    Serial.printf("t: %d, %d, %d, %d\n", t1_actual, t2_actual, t3_actual, t4_actual);
 
     ledcWrite(RTRCTL_CHNL1, t1_actual);
     ledcWrite(RTRCTL_CHNL2, t2_actual);
