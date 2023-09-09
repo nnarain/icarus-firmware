@@ -7,16 +7,14 @@
 
 #include <Arduino.h>
 
-#include <pins.hpp>
+#include "pins.hpp"
 
-#include <RotorController.hpp>
-#include <Sensors.hpp>
-#include <IcarusServer.hpp>
-#include <StatLed.hpp>
+#include "RotorController.hpp"
+#include "Sensors.hpp"
+#include "StatLed.hpp"
 
 RotorController rtrctl;
 Sensors sensors;
-IcarusServer server;
 StatLed led{ICARUS_STAT_LED};
 
 uint16_t throttle = 0;
@@ -40,30 +38,12 @@ void setup() {
     Serial.println("Sensor setup complete!");
   }
 
-  server.begin();
-  Serial.println("Server setup complete");
-
   led.begin();
 }
 
 void loop() {
   sensors.update();
   const auto attitude = sensors.getAttitude();
-  server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
-
-  // if (server.isConnected())
-  // {
-  //   const auto throttle = server.getThrottle();
-  //   rtrctl.setCommand(throttle.pitch, throttle.roll, throttle.yaw, throttle.vertical);
-
-  //   led.showConnected();
-  // }
-  // else
-  // {
-  //   rtrctl.disarm();
-
-  //   led.showDisconnected();
-  // }
 
   const auto now = millis();
 
@@ -76,11 +56,6 @@ void loop() {
       rtrctl.setCommand(0, 0, 0, throttle);
       throttle += 1;
 
-      // if (throttle > 100)
-      // {
-      //   throttle = 0;
-      // }
-
       last_command_time_ms = now;
     }
   }
@@ -89,6 +64,8 @@ void loop() {
   const auto pitch = attitude.pitch;
   const auto roll = attitude.roll;
   const auto yaw = attitude.yaw;
+
+  Serial.printf("%0.2f\n", pitch);
 
   // Update the controller with the estimated state
   rtrctl.update(pitch, roll, yaw);
