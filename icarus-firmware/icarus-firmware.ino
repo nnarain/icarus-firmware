@@ -56,7 +56,7 @@ void setup() {
 }
 
 void loop() {
-  //sensors.update();
+  sensors.update();
 
   // Get the estimated state
   const auto attitude = sensors.getAttitude();
@@ -66,7 +66,7 @@ void loop() {
   const auto yaw = attitude.yaw;
 
   // Update the controller with the estimated state
-  //rtrctl.update(pitch, roll, yaw);
+  rtrctl.update(pitch, roll, yaw);
 
   // Update input from gamepad
   BP32.update();
