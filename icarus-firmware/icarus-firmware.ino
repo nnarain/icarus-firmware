@@ -11,10 +11,12 @@
 
 #include "pins.hpp"
 
+#include "ControlInput.hpp"
 #include "RotorController.hpp"
 #include "Sensors.hpp"
 #include "StatLed.hpp"
 
+ControlInput input;
 RotorController rtrctl;
 Sensors sensors;
 StatLed led{ICARUS_STAT_LED};
@@ -80,14 +82,7 @@ void processGamepad(GamepadPtr gamepad)
 {
   if (gamepad && gamepad->isConnected())
   {
-    const auto a_btn = gamepad->a();
-    const auto b_btn = gamepad->b();
-
-    const auto lx_axis = gamepad->axisX();
-    const auto ly_axis = gamepad->axisY();
-
-    Serial.printf("a: %d, b: %d\n", a_btn, b_btn);
-    Serial.printf("lx: %d, ly: %d\n", lx_axis, ly_axis);
+    input.processGamepad(gamepad);
   }
 }
 
