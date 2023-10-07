@@ -5,7 +5,7 @@
 // @date Feb 04 2023
 //
 
-#include <StatLed.hpp>
+#include "StatLed.hpp"
 
 StatLed::StatLed(uint8_t pin)
     : stat_{1, pin, NEO_GBR | NEO_KHZ800}
