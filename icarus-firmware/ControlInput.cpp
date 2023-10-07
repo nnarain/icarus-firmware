@@ -18,4 +18,20 @@ void ControlInput::processGamepad(GamepadPtr gamepad)
 
   pitch_ = (int16_t)utils::mapf((double)ry_axis, -512.0, 512.0, -100.0, 100.0);
   roll_ = (int16_t)utils::mapf((double)rx_axis, -512.0, 512.0, -100.0, 100.0);
+  throttle_ = (int16_t)utils::mapf((double)ly_axis, -512.0, 512.0, -100.0, 100.0) * -1;
+}
+
+int16_t ControlInput::getPitch() const
+{
+  return pitch_;
+}
+
+int16_t ControlInput::getRoll() const
+{
+  return roll_;
+}
+
+int16_t ControlInput::getThrottle() const
+{
+  return throttle_;
 }

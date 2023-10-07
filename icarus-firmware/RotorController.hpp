@@ -49,7 +49,9 @@ public:
 
     void update(double pitch, double roll, double yaw);
 
-    void setCommand(int16_t t1, int16_t t2, int16_t t3, int16_t t4);
+    void setCommand(int16_t pitch, int16_t roll, int16_t yaw, int16_t throttle);
+
+    bool isArmed() const;
 
 private:
     void setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_t t4);
@@ -74,4 +76,7 @@ private:
 
     // Overall Throttle
     double throttle_{0.0};
+
+    // ARMed
+    bool is_armed_{false};
 };

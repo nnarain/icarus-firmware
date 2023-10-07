@@ -25,6 +25,8 @@ uint16_t throttle = 0;
 uint32_t last_command_time_ms = 0;
 uint32_t last_connected_time_ms = 0;
 
+uint32_t armed_time_ms = 0;
+
 GamepadPtr connected_gamepad = nullptr;
 
 
@@ -70,6 +72,19 @@ void loop() {
   // Update the controller with the estimated state
   rtrctl.update(pitch, roll, yaw);
 
+  // const auto now = millis();
+  // if (now > 10000)
+  // {
+  //   static int16_t throttle = 0;
+
+  //   if (now >= last_command_time_ms + 100 && throttle < 50)
+  //   {
+  //     rtrctl.setCommand(0, 0, 0, throttle);
+  //     throttle++;
+  //     last_command_time_ms = now;
+  //   }
+  // }
+
   // Update input from gamepad
   BP32.update();
   processGamepad(connected_gamepad);
@@ -83,6 +98,12 @@ void processGamepad(GamepadPtr gamepad)
   if (gamepad && gamepad->isConnected())
   {
     input.processGamepad(gamepad);
+    rtrctl.setCommand(input.getPitch(), input.getRoll(), 0, input.getThrottle());
+  }
+  else
+  {
+    // rtrctl.setCommand(0, 0, 0, 0);
+    rtrctl.disarm();
   }
 }
 

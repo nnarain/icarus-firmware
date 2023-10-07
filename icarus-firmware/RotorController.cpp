@@ -62,11 +62,13 @@ bool RotorController::begin(uint8_t rtr1, uint8_t rtr2, uint8_t rtr3, uint8_t rt
 void RotorController::arm()
 {
   setThrottle(THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN, THROTTLE_MIN);
+  is_armed_ = true;
 }
 
 void RotorController::disarm()
 {
   setThrottle(0, 0, 0, 0);
+  is_armed_ = false;
 }
 
 void RotorController::update(double pitch, double roll, double yaw)
@@ -129,4 +131,9 @@ void RotorController::setThrottle(uint16_t t1, uint16_t t2, uint16_t t3, uint16_
   ledcWrite(RTRCTL_CHNL2, t2_actual);
   ledcWrite(RTRCTL_CHNL3, t3_actual);
   ledcWrite(RTRCTL_CHNL4, t4_actual);
+}
+
+bool RotorController::isArmed() const
+{
+  return is_armed_;
 }
