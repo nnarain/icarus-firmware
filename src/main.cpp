@@ -11,12 +11,10 @@
 
 #include <RotorController.hpp>
 #include <Sensors.hpp>
-#include <IcarusServer.hpp>
 #include <StatLed.hpp>
 
 RotorController rtrctl;
 Sensors sensors;
-IcarusServer server;
 StatLed led{ICARUS_STAT_LED};
 
 uint16_t throttle = 0;
@@ -40,16 +38,12 @@ void setup() {
     Serial.println("Sensor setup complete!");
   }
 
-  server.begin();
-  Serial.println("Server setup complete");
-
   led.begin();
 }
 
 void loop() {
   sensors.update();
   const auto attitude = sensors.getAttitude();
-  server.updateAttitude(attitude.pitch, attitude.roll, attitude.yaw);
 
   // if (server.isConnected())
   // {
