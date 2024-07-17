@@ -1,3 +1,10 @@
+//
+// main.rs
+//
+// @author Natesh Narain <nnaraindev@gmail.com>
+// @date Jul 16 2024
+//
+
 #![no_std]
 #![no_main]
 
@@ -5,19 +12,17 @@
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    bind_interrupts, gpio::{Level, Output, Speed}, peripherals, usart::{self, Config as UartConfig, Uart, UartRx}
+    bind_interrupts, gpio::{Level, Output, Speed}, peripherals, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
 };
 use embassy_time::Timer;
 use embassy_sync::channel::Channel;
 
+use icarus_core::telemetry::Telemetry;
 use panic_halt as _;
 
 use icarus_firmware::{
     rc::RcInputDecoder,
-    queues::{
-        RcInputChannel, RcInputChannelSender, RcInputChannelReceiver,
-        SensorStateChannel, SensorStateChannelSender, SensorStateChannelReceiver,
-    }
+    queues::*,
 };
 
 bind_interrupts!(struct Irqs {
@@ -28,6 +33,8 @@ bind_interrupts!(struct Irqs {
 static RC_INPUT_CHNL: RcInputChannel = Channel::new();
 // Channel used to receive sensor data
 static SENSOR_STATE_CHNL: SensorStateChannel = Channel::new();
+// Channel used to communicate telemetry data to a host system
+static TELEMETRY_CHNL: TelemetryChannel = Channel::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -43,7 +50,7 @@ async fn main(spawner: Spawner) {
     // Use default configuration for UART: 115200 baud
     let usart_config = UartConfig::default();
 
-    let (_uart_tx, uart_rx) = Uart::new(dp.USART1, dp.PA10, dp.PA9, Irqs, dp.DMA2_CH7, dp.DMA2_CH2, usart_config)
+    let (uart_tx, uart_rx) = Uart::new(dp.USART1, dp.PA10, dp.PA9, Irqs, dp.DMA2_CH7, dp.DMA2_CH2, usart_config)
                                     .unwrap().split();
 
 
@@ -53,15 +60,20 @@ async fn main(spawner: Spawner) {
     spawner.spawn(rc_input_task(uart_rx, RC_INPUT_CHNL.sender())).unwrap();
     // Control loop task
     // TODO(nnarain): PWM
-    spawner.spawn(control_task(RC_INPUT_CHNL.receiver(), SENSOR_STATE_CHNL.receiver())).unwrap();
+    spawner.spawn(control_task(RC_INPUT_CHNL.receiver(), SENSOR_STATE_CHNL.receiver(), TELEMETRY_CHNL.sender())).unwrap();
     // LED task
     spawner.spawn(led_task(led)).unwrap();
+    // Telemetry task
+    spawner.spawn(telemetry_task(uart_tx, TELEMETRY_CHNL.receiver())).unwrap();
 }
 
 #[embassy_executor::task]
-async fn control_task(rc_input: RcInputChannelReceiver, sensor_state: SensorStateChannelReceiver) {
+async fn control_task(rc_input: RcInputChannelReceiver, _sensor_state: SensorStateChannelReceiver, telemetry: TelemetryChannelSender) {
     loop {
-        Timer::after_millis(1000).await;
+        let input = rc_input.receive().await;
+
+        let telemetry_msg = Telemetry {chnl0: input.chnl0};
+        telemetry.send(telemetry_msg).await;
     }
 }
 
@@ -105,5 +117,18 @@ async fn led_task(mut led: Output<'static, peripherals::PB0>) {
     loop {
         led.toggle();
         Timer::after_millis(1000).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn telemetry_task(mut uart: UartTx<'static, peripherals::USART1, peripherals::DMA2_CH7>, telemetry: TelemetryChannelReceiver) {
+    loop {
+        let telemetry = telemetry.receive().await;
+
+        let b0 = (telemetry.chnl0 & 0x0F) as u8;
+        let b1 = (telemetry.chnl0 >> 8) as u8;
+        let buf: [u8; 0x02] = [b0, b1];
+
+        uart.write(&buf[..]).await.unwrap();
     }
 }

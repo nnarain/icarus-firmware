@@ -52,7 +52,8 @@ enum DecoderState {
     Footer,
 }
 
-/// Decodes the incoming 
+/// Decodes the incoming
+/// TODO(nnarain): I feel this could be some sort of async iterator implementation
 pub struct RcInputDecoder {
     state: DecoderState,
     channel_bytes: [u8; 8],
@@ -120,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn decoder_bytes() {
+    fn decode_one_packet() {
         let bytes: [u8; 10] = [
             0x0F,
             1, 0,

@@ -8,3 +8,4 @@
 
 pub mod rc;
 pub mod sensors;
+pub mod telemetry;

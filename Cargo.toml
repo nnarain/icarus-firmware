@@ -1,6 +1,7 @@
 [workspace]
-members = [
+members = [ "icarus-cli",
     "icarus-core",
-    "icarus-firmware"
+    "icarus-firmware",
+    "icarus-cli"
 ]
 resolver = "2"
