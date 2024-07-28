@@ -12,27 +12,41 @@
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    bind_interrupts, gpio::{Level, Output, Speed}, peripherals, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
+    bind_interrupts,
+    gpio::{Level, Output, Speed},
+    peripherals,
+    usart::{self, Config as UartConfig, Uart, UartRx, UartTx},
+    i2c::{self, I2c},
+    time::Hertz,
 };
 use embassy_time::Timer;
 use embassy_sync::channel::Channel;
 
-use icarus_core::telemetry::Telemetry;
 use panic_halt as _;
 
 use icarus_firmware::{
     rc::RcInputDecoder,
+    telemetry::Telemetry,
+    sensors::{EstimatedState, Attitude},
     queues::*,
+};
+
+use mpu6050_dmp::{
+    sensor_async::Mpu6050,
+    address::Address as Mpu6050Address,
 };
 
 bind_interrupts!(struct Irqs {
     USART1 => usart::InterruptHandler<peripherals::USART1>;
+
+    I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
+    I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
 });
 
 // Channel used to receive RC data from UART
 static RC_INPUT_CHNL: RcInputChannel = Channel::new();
 // Channel used to receive sensor data
-static SENSOR_STATE_CHNL: SensorStateChannel = Channel::new();
+static ESTIMATED_STATE_CHNL: EstimatedStateChannel = Channel::new();
 // Channel used to communicate telemetry data to a host system
 static TELEMETRY_CHNL: TelemetryChannel = Channel::new();
 
@@ -53,14 +67,20 @@ async fn main(spawner: Spawner) {
     let (uart_tx, uart_rx) = Uart::new(dp.USART1, dp.PA10, dp.PA9, Irqs, dp.DMA2_CH7, dp.DMA2_CH2, usart_config)
                                     .unwrap().split();
 
+    // I2C hardware
+    let i2c = I2c::new(dp.I2C1, dp.PB6, dp.PB7, Irqs, dp.DMA1_CH6, dp.DMA1_CH0, Hertz(400_000), Default::default());
+
+    let imu = Mpu6050::new(i2c, Mpu6050Address::default()).await.unwrap();
 
     // Spawn tasks
 
     // RC input task
     spawner.spawn(rc_input_task(uart_rx, RC_INPUT_CHNL.sender())).unwrap();
+    // Sensors task
+    spawner.spawn(sensors_task(imu, ESTIMATED_STATE_CHNL.sender())).unwrap();
     // Control loop task
     // TODO(nnarain): PWM
-    spawner.spawn(control_task(RC_INPUT_CHNL.receiver(), SENSOR_STATE_CHNL.receiver(), TELEMETRY_CHNL.sender())).unwrap();
+    spawner.spawn(control_task(RC_INPUT_CHNL.receiver(), ESTIMATED_STATE_CHNL.receiver(), TELEMETRY_CHNL.sender())).unwrap();
     // LED task
     spawner.spawn(led_task(led)).unwrap();
     // Telemetry task
@@ -68,7 +88,7 @@ async fn main(spawner: Spawner) {
 }
 
 #[embassy_executor::task]
-async fn control_task(rc_input: RcInputChannelReceiver, _sensor_state: SensorStateChannelReceiver, telemetry: TelemetryChannelSender) {
+async fn control_task(rc_input: RcInputChannelReceiver, _sensor_state: EstimatedStateChannelReceiver, telemetry: TelemetryChannelSender) {
     loop {
         let input = rc_input.receive().await;
 
@@ -78,9 +98,15 @@ async fn control_task(rc_input: RcInputChannelReceiver, _sensor_state: SensorSta
 }
 
 #[embassy_executor::task]
-async fn sensors_task() {
+async fn sensors_task(mut imu: Mpu6050<I2c<'static, peripherals::I2C1, peripherals::DMA1_CH6, peripherals::DMA1_CH0>>, estimated_state: EstimatedStateChannelSender) {
     loop {
-        Timer::after_millis(1000).await;
+        let _accel = imu.accel().await.unwrap();
+        let _gyro = imu.gyro().await.unwrap();
+
+        let attitude = Attitude::default();
+        let state = EstimatedState { attitude, };
+
+        estimated_state.send(state).await;
     }
 }
 

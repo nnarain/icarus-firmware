@@ -12,6 +12,7 @@ icarus-core = { path = "../icarus-core" }
 
 # Change stm32f429zi to your chip name, if necessary.
 embassy-stm32 = { version = "0.1.0", features = ["stm32f405rg", "time-driver-any", "chrono"] }
+embassy-embedded-hal = "0.1.0"
 embassy-sync = { version = "0.6.0" }
 embassy-executor = { version = "0.5.0", features = ["arch-cortex-m", "executor-interrupt", "executor-thread", "task-arena-size-32768",  "integrated-timers"] }
 embassy-futures = { version = "0.1.0" }
@@ -30,5 +31,5 @@ nb = "1.0.0"
 
 thiserror = { version = "1.0", package = "thiserror-core", default-features = false}
 
-[profile.release]
-debug = 2
+mpu6050-dmp = "0.4.0"
+
