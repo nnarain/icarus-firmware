@@ -35,6 +35,8 @@ use mpu6050_dmp::{
     sensor_async::Mpu6050,
     address::Address as Mpu6050Address,
 };
+use ahrs::{Ahrs, Madgwick};
+use nalgebra::Vector3;
 
 bind_interrupts!(struct Irqs {
     USART1 => usart::InterruptHandler<peripherals::USART1>;
@@ -88,9 +90,11 @@ async fn main(spawner: Spawner) {
 }
 
 #[embassy_executor::task]
-async fn control_task(rc_input: RcInputChannelReceiver, _sensor_state: EstimatedStateChannelReceiver, telemetry: TelemetryChannelSender) {
+async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, telemetry: TelemetryChannelSender) {
     loop {
+        // TODO(nnarain): this needs to timeout
         let input = rc_input.receive().await;
+        let state = estimated_state.receive().await;
 
         let telemetry_msg = Telemetry {chnl0: input.chnl0};
         telemetry.send(telemetry_msg).await;
@@ -99,11 +103,22 @@ async fn control_task(rc_input: RcInputChannelReceiver, _sensor_state: Estimated
 
 #[embassy_executor::task]
 async fn sensors_task(mut imu: Mpu6050<I2c<'static, peripherals::I2C1, peripherals::DMA1_CH6, peripherals::DMA1_CH0>>, estimated_state: EstimatedStateChannelSender) {
-    loop {
-        let _accel = imu.accel().await.unwrap();
-        let _gyro = imu.gyro().await.unwrap();
+    let mut ahrs = Madgwick::default();
 
-        let attitude = Attitude::default();
+    loop {
+        let accel = imu.accel().await.unwrap();
+        let gyro = imu.gyro().await.unwrap();
+
+        // TODO(nnarain): Check units
+        let accel = Vector3::new(accel.x() as f64, accel.y() as f64, accel.z() as f64);
+        let gyro = Vector3::new(gyro.x() as f64, gyro.y() as f64, gyro.z() as f64);
+
+        let quat = ahrs.update_imu(&gyro, &accel).unwrap();
+
+        let (roll, pitch, yaw) = quat.euler_angles();
+        let (roll, pitch, yaw) = (roll as f32, pitch as f32, yaw as f32);
+
+        let attitude = Attitude { pitch, roll, yaw };
         let state = EstimatedState { attitude, };
 
         estimated_state.send(state).await;
