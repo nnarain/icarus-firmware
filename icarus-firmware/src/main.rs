@@ -37,6 +37,7 @@ use mpu6050_dmp::{
 };
 use ahrs::{Ahrs, Madgwick};
 use nalgebra::Vector3;
+use pid::Pid;
 
 bind_interrupts!(struct Irqs {
     USART1 => usart::InterruptHandler<peripherals::USART1>;
@@ -91,10 +92,65 @@ async fn main(spawner: Spawner) {
 
 #[embassy_executor::task]
 async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, telemetry: TelemetryChannelSender) {
+    // PID controller for pitch
+    let mut pitch_pid: Pid<f32> = Pid::new(0.0, 10.0);
+    pitch_pid.p(1.0, 100.0);
+    pitch_pid.i(1.0, 100.0);
+    pitch_pid.d(1.0, 100.0);
+
+    // PID controller roll
+    let mut roll_pid: Pid<f32> = Pid::new(0.0, 10.0);
+    roll_pid.p(1.0, 100.0);
+    roll_pid.i(1.0, 100.0);
+    roll_pid.d(1.0, 100.0);
+
+    // PID controller for yaw
+    let mut yaw_pid: Pid<f32> = Pid::new(0.0, 10.0);
+    yaw_pid.p(1.0, 100.0);
+    yaw_pid.i(1.0, 100.0);
+    yaw_pid.d(1.0, 100.0);
+
     loop {
+        // Get the RC input and estimated state
+
         // TODO(nnarain): this needs to timeout
         let input = rc_input.receive().await;
         let state = estimated_state.receive().await;
+
+        // Pitch, roll, yaw input from RC controller
+        let (pitch_input, roll_input, yaw_input) = input.throttle();
+        // Estimated pitch, roll, yaw
+        let Attitude {pitch, roll, yaw} = state.attitude;
+
+        // Update the PID controllers with the new set points
+        pitch_pid.setpoint(pitch_input);
+        roll_pid.setpoint(roll_input);
+        yaw_pid.setpoint(yaw_input);
+
+        // Get the output of the PID controller
+        let pitch_output = pitch_pid.next_control_output(pitch).output;
+        let roll_output = roll_pid.next_control_output(roll).output;
+        let yaw_output = yaw_pid.next_control_output(yaw).output;
+
+        // Mix the PID outputs to get the individual rotor throttles
+        let throttle = 0.0f32;
+
+        /*
+          Rotor Layout
+
+            ^^
+          (4)  (2)
+            \/
+            /\
+          (3)  (1)
+        */
+        let t1 = throttle + pitch_output + roll_output - yaw_output;
+        let t2 = throttle - pitch_output + roll_output + yaw_output;
+        let t3 = throttle + pitch_output - roll_output + yaw_output;
+        let t4 = throttle - pitch_output - roll_output - yaw_output;
+
+        // Update PWM
+        // TODO
 
         let telemetry_msg = Telemetry {chnl0: input.chnl0};
         telemetry.send(telemetry_msg).await;

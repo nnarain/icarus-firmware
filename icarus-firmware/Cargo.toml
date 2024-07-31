@@ -34,3 +34,4 @@ thiserror = { version = "1.0", package = "thiserror-core", default-features = fa
 mpu6050-dmp = "0.4.0"
 ahrs = {version = "0.6.0", default-features = false}
 nalgebra = { version = "0.31.4", default-features = false, features = ["libm-force"]}
+pid = "4.0"
