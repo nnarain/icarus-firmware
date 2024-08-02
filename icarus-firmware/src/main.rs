@@ -12,12 +12,7 @@
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    bind_interrupts,
-    gpio::{Level, Output, Speed},
-    peripherals,
-    usart::{self, Config as UartConfig, Uart, UartRx, UartTx},
-    i2c::{self, I2c},
-    time::Hertz,
+    bind_interrupts, gpio::{Level, Output, OutputType, Speed}, i2c::{self, I2c}, peripherals, time::{hz, Hertz}, timer::{simple_pwm::{PwmPin, SimplePwm}, Channel as PwmChannel}, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
 };
 use embassy_time::Timer;
 use embassy_sync::channel::Channel;
@@ -53,6 +48,23 @@ static ESTIMATED_STATE_CHNL: EstimatedStateChannel = Channel::new();
 // Channel used to communicate telemetry data to a host system
 static TELEMETRY_CHNL: TelemetryChannel = Channel::new();
 
+// TODO(nnarain): Need to re-calculate this
+// 200Hz -> 5ms
+// 14-bit resolution -> 16383 steps
+// 5ms / 16383 -> 3.05e-7 ms per step
+//
+// Max Throttle -> 2ms pulse width
+// 2ms / 3.05e-7 = 6553
+//
+// Min Throttle -> 1ms pulse width
+// 1ms / 3.05e-7 = 3276
+
+// #define THROTTLE_MIN 51
+// #define THROTTLE_MAX 102
+
+const THROTTLE_MIN: u16 = 3276;
+const THROTTLE_MAX: u16 = 6553;
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     // Configure device core and get peripherals
@@ -75,6 +87,14 @@ async fn main(spawner: Spawner) {
 
     let imu = Mpu6050::new(i2c, Mpu6050Address::default()).await.unwrap();
 
+    // PWM hardware
+    let ch1 = PwmPin::new_ch1(dp.PA0, OutputType::PushPull);
+    let ch2 = PwmPin::new_ch2(dp.PA1, OutputType::PushPull);
+    let ch3 = PwmPin::new_ch3(dp.PA2, OutputType::PushPull);
+    let ch4 = PwmPin::new_ch4(dp.PA3, OutputType::PushPull);
+
+    let pwm = SimplePwm::new(dp.TIM5, Some(ch1), Some(ch2), Some(ch3), Some(ch4), hz(50), Default::default());
+
     // Spawn tasks
 
     // RC input task
@@ -83,7 +103,7 @@ async fn main(spawner: Spawner) {
     spawner.spawn(sensors_task(imu, ESTIMATED_STATE_CHNL.sender())).unwrap();
     // Control loop task
     // TODO(nnarain): PWM
-    spawner.spawn(control_task(RC_INPUT_CHNL.receiver(), ESTIMATED_STATE_CHNL.receiver(), TELEMETRY_CHNL.sender())).unwrap();
+    spawner.spawn(control_task(RC_INPUT_CHNL.receiver(), ESTIMATED_STATE_CHNL.receiver(), pwm, TELEMETRY_CHNL.sender())).unwrap();
     // LED task
     spawner.spawn(led_task(led)).unwrap();
     // Telemetry task
@@ -91,24 +111,24 @@ async fn main(spawner: Spawner) {
 }
 
 #[embassy_executor::task]
-async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, telemetry: TelemetryChannelSender) {
+async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, mut pwm: SimplePwm<'static, peripherals::TIM5>, telemetry: TelemetryChannelSender) {
     // PID controller for pitch
     let mut pitch_pid: Pid<f32> = Pid::new(0.0, 10.0);
-    pitch_pid.p(1.0, 100.0);
-    pitch_pid.i(1.0, 100.0);
-    pitch_pid.d(1.0, 100.0);
+    pitch_pid.p(8.75, 100.0);
+    pitch_pid.i(3.5, 100.0);
+    pitch_pid.d(0.1, 100.0);
 
     // PID controller roll
     let mut roll_pid: Pid<f32> = Pid::new(0.0, 10.0);
     roll_pid.p(1.0, 100.0);
-    roll_pid.i(1.0, 100.0);
-    roll_pid.d(1.0, 100.0);
+    roll_pid.i(3.5, 100.0);
+    roll_pid.d(0.1, 100.0);
 
     // PID controller for yaw
     let mut yaw_pid: Pid<f32> = Pid::new(0.0, 10.0);
     yaw_pid.p(1.0, 100.0);
-    yaw_pid.i(1.0, 100.0);
-    yaw_pid.d(1.0, 100.0);
+    yaw_pid.i(3.5, 100.0);
+    yaw_pid.d(0.1, 100.0);
 
     loop {
         // Get the RC input and estimated state
@@ -118,7 +138,7 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         let state = estimated_state.receive().await;
 
         // Pitch, roll, yaw input from RC controller
-        let (pitch_input, roll_input, yaw_input) = input.throttle();
+        let (pitch_input, roll_input, yaw_input, throttle) = input.throttle();
         // Estimated pitch, roll, yaw
         let Attitude {pitch, roll, yaw} = state.attitude;
 
@@ -133,15 +153,14 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         let yaw_output = yaw_pid.next_control_output(yaw).output;
 
         // Mix the PID outputs to get the individual rotor throttles
-        let throttle = 0.0f32;
 
         /*
           Rotor Layout
 
             ^^
           (4)  (2)
-            \/
-            /\
+             \/
+             /\
           (3)  (1)
         */
         let t1 = throttle + pitch_output + roll_output - yaw_output;
@@ -149,8 +168,16 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         let t3 = throttle + pitch_output - roll_output + yaw_output;
         let t4 = throttle - pitch_output - roll_output - yaw_output;
 
+        let t1 = (t1 as u16).clamp(THROTTLE_MIN, THROTTLE_MAX);
+        let t2 = (t2 as u16).clamp(THROTTLE_MIN, THROTTLE_MAX);
+        let t3 = (t3 as u16).clamp(THROTTLE_MIN, THROTTLE_MAX);
+        let t4 = (t4 as u16).clamp(THROTTLE_MIN, THROTTLE_MAX);
+
         // Update PWM
-        // TODO
+        pwm.set_duty(PwmChannel::Ch1, t1);
+        pwm.set_duty(PwmChannel::Ch2, t2);
+        pwm.set_duty(PwmChannel::Ch3, t3);
+        pwm.set_duty(PwmChannel::Ch4, t4);
 
         let telemetry_msg = Telemetry {chnl0: input.chnl0};
         telemetry.send(telemetry_msg).await;

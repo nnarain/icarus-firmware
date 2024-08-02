@@ -26,8 +26,8 @@ impl RcInput {
         RcInput { chnl0, chnl1, chnl2, chnl3 }
     }
 
-    pub fn throttle(&self) -> (f32, f32, f32) {
-        (self.chnl0 as f32, self.chnl1 as f32, self.chnl2 as f32)
+    pub fn throttle(&self) -> (f32, f32, f32, f32) {
+        (self.chnl0 as f32, self.chnl1 as f32, self.chnl2 as f32, self.chnl3 as f32)
     }
 }
 
