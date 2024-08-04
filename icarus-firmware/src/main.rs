@@ -12,11 +12,10 @@
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    bind_interrupts, gpio::{Level, Output, OutputType, Speed}, i2c::{self, I2c}, peripherals, time::{hz, Hertz}, timer::{simple_pwm::{PwmPin, SimplePwm}, Channel as PwmChannel}, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
+    bind_interrupts, gpio::{Output, OutputType}, i2c::{self, I2c}, peripherals, time::{hz, Hertz}, timer::{simple_pwm::{PwmPin, SimplePwm}, Channel as PwmChannel}, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
 };
 use embassy_time::{with_timeout, Duration, Timer};
 use embassy_sync::channel::Channel;
-use embedded_io::Write;
 
 use panic_halt as _;
 
@@ -25,6 +24,7 @@ use icarus_firmware::{
     telemetry::Telemetry,
     sensors::{EstimatedState, Attitude},
     queues::*,
+    MAX_ROTOR_THROTTLE, MIN_ROTOR_THROTTLE, ROTOR_PWM_FREQ
 };
 
 use mpu6050_dmp::{
@@ -49,23 +49,6 @@ static ESTIMATED_STATE_CHNL: EstimatedStateChannel = Channel::new();
 // Channel used to communicate telemetry data to a host system
 static TELEMETRY_CHNL: TelemetryChannel = Channel::new();
 
-// TODO(nnarain): Need to re-calculate this
-// 200Hz -> 5ms
-// 14-bit resolution -> 16383 steps
-// 5ms / 16383 -> 3.05e-7 ms per step
-//
-// Max Throttle -> 2ms pulse width
-// 2ms / 3.05e-7 = 6553
-//
-// Min Throttle -> 1ms pulse width
-// 1ms / 3.05e-7 = 3276
-
-// #define THROTTLE_MIN 51
-// #define THROTTLE_MAX 102
-
-const THROTTLE_MIN: u16 = 3276;
-const THROTTLE_MAX: u16 = 6553;
-
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     // Configure device core and get peripherals
@@ -74,7 +57,11 @@ async fn main(spawner: Spawner) {
     // Hardware Setup
 
     // LED hardware
-    let _led = Output::new(dp.PB0, Level::Low, Speed::Low);
+    // let _led = Output::new(dp.PB0, Level::Low, Speed::Low);
+    // let mut spi_config = spi::Config::default();
+    // spi_config.frequency = khz(12_800);
+
+    // let spi = Spi::new_txonly_nosck(dp.SPI1, dp.PB0, dp.DMA1_CH0, spi_config);
 
     // Serial hardware
     // Use default configuration for UART: 115200 baud
@@ -94,7 +81,7 @@ async fn main(spawner: Spawner) {
     let ch3 = PwmPin::new_ch3(dp.PA2, OutputType::PushPull);
     let ch4 = PwmPin::new_ch4(dp.PA3, OutputType::PushPull);
 
-    let pwm = SimplePwm::new(dp.TIM5, Some(ch1), Some(ch2), Some(ch3), Some(ch4), hz(50), Default::default());
+    let pwm = SimplePwm::new(dp.TIM5, Some(ch1), Some(ch2), Some(ch3), Some(ch4), hz(ROTOR_PWM_FREQ), Default::default());
 
     // Spawn tasks
 
@@ -112,7 +99,7 @@ async fn main(spawner: Spawner) {
 }
 
 #[embassy_executor::task]
-async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, mut pwm: SimplePwm<'static, peripherals::TIM5>, telemetry: TelemetryChannelSender) {
+async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, mut pwm: SimplePwm<'static, peripherals::TIM5>, _telemetry: TelemetryChannelSender) {
     // PID controller for pitch
     let mut pitch_pid: Pid<f32> = Pid::new(0.0, 10.0);
     pitch_pid.p(8.75, 100.0);
@@ -130,6 +117,12 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
     yaw_pid.p(1.0, 100.0);
     yaw_pid.i(3.5, 100.0);
     yaw_pid.d(0.1, 100.0);
+
+    // Enable all PWM outputs
+    pwm.enable(PwmChannel::Ch1);
+    pwm.enable(PwmChannel::Ch2);
+    pwm.enable(PwmChannel::Ch3);
+    pwm.enable(PwmChannel::Ch4);
 
     loop {
         // Get the RC input and estimated state
@@ -169,19 +162,18 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         let t3 = throttle + pitch_output - roll_output + yaw_output;
         let t4 = throttle - pitch_output - roll_output - yaw_output;
 
-        let t1 = (t1 as u16).clamp(THROTTLE_MIN, THROTTLE_MAX);
-        let t2 = (t2 as u16).clamp(THROTTLE_MIN, THROTTLE_MAX);
-        let t3 = (t3 as u16).clamp(THROTTLE_MIN, THROTTLE_MAX);
-        let t4 = (t4 as u16).clamp(THROTTLE_MIN, THROTTLE_MAX);
+        let t1 = (t1 as u16).clamp(MIN_ROTOR_THROTTLE, MAX_ROTOR_THROTTLE);
+        let t2 = (t2 as u16).clamp(MIN_ROTOR_THROTTLE, MAX_ROTOR_THROTTLE);
+        let t3 = (t3 as u16).clamp(MIN_ROTOR_THROTTLE, MAX_ROTOR_THROTTLE);
+        let t4 = (t4 as u16).clamp(MIN_ROTOR_THROTTLE, MAX_ROTOR_THROTTLE);
 
-        // Update PWM
         pwm.set_duty(PwmChannel::Ch1, t1);
         pwm.set_duty(PwmChannel::Ch2, t2);
         pwm.set_duty(PwmChannel::Ch3, t3);
         pwm.set_duty(PwmChannel::Ch4, t4);
 
-        let telemetry_msg = Telemetry {state,};
-        telemetry.send(telemetry_msg).await;
+        let _telemetry_msg = Telemetry {state,};
+        // telemetry.send(telemetry_msg).await;
     }
 }
 

@@ -8,6 +8,7 @@
 
 // Re-exports
 pub use icarus_core::{rc, sensors, telemetry};
+pub use icarus_core::{MIN_ROTOR_THROTTLE, MAX_ROTOR_THROTTLE, ROTOR_PWM_FREQ};
 
 
 /// Task queues
