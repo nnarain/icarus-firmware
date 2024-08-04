@@ -14,6 +14,7 @@ pub enum RcError {
 }
 
 /// Data received from the RC controller
+#[derive(Debug, Default)]
 pub struct RcInput {
     pub chnl0: u16,
     pub chnl1: u16,

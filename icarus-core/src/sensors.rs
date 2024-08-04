@@ -6,7 +6,7 @@
 //
 
 /// Orientation information
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct Attitude {
     pub pitch: f32,
     pub roll: f32,
@@ -14,7 +14,7 @@ pub struct Attitude {
 }
 
 /// Complete sensor state of the drone
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct EstimatedState {
     pub attitude: Attitude,
 }

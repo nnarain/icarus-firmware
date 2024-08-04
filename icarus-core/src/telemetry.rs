@@ -5,6 +5,8 @@
 // @date Jul 16 2024
 //
 
+use crate::sensors::EstimatedState;
+
 pub struct Telemetry {
-    pub chnl0: u16,
+    pub state: EstimatedState,
 }

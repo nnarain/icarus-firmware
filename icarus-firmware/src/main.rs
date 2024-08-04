@@ -14,8 +14,9 @@ use embassy_executor::Spawner;
 use embassy_stm32::{
     bind_interrupts, gpio::{Level, Output, OutputType, Speed}, i2c::{self, I2c}, peripherals, time::{hz, Hertz}, timer::{simple_pwm::{PwmPin, SimplePwm}, Channel as PwmChannel}, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
 };
-use embassy_time::Timer;
+use embassy_time::{with_timeout, Duration, Timer};
 use embassy_sync::channel::Channel;
+use embedded_io::Write;
 
 use panic_halt as _;
 
@@ -73,7 +74,7 @@ async fn main(spawner: Spawner) {
     // Hardware Setup
 
     // LED hardware
-    let led = Output::new(dp.PB0, Level::Low, Speed::Low);
+    let _led = Output::new(dp.PB0, Level::Low, Speed::Low);
 
     // Serial hardware
     // Use default configuration for UART: 115200 baud
@@ -105,7 +106,7 @@ async fn main(spawner: Spawner) {
     // TODO(nnarain): PWM
     spawner.spawn(control_task(RC_INPUT_CHNL.receiver(), ESTIMATED_STATE_CHNL.receiver(), pwm, TELEMETRY_CHNL.sender())).unwrap();
     // LED task
-    spawner.spawn(led_task(led)).unwrap();
+    //spawner.spawn(led_task(led)).unwrap();
     // Telemetry task
     spawner.spawn(telemetry_task(uart_tx, TELEMETRY_CHNL.receiver())).unwrap();
 }
@@ -134,7 +135,7 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         // Get the RC input and estimated state
 
         // TODO(nnarain): this needs to timeout
-        let input = rc_input.receive().await;
+        let input = with_timeout(Duration::from_millis(10), rc_input.receive()).await.unwrap_or_default();
         let state = estimated_state.receive().await;
 
         // Pitch, roll, yaw input from RC controller
@@ -157,7 +158,7 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         /*
           Rotor Layout
 
-            ^^
+             ^^
           (4)  (2)
              \/
              /\
@@ -179,7 +180,7 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         pwm.set_duty(PwmChannel::Ch3, t3);
         pwm.set_duty(PwmChannel::Ch4, t4);
 
-        let telemetry_msg = Telemetry {chnl0: input.chnl0};
+        let telemetry_msg = Telemetry {state,};
         telemetry.send(telemetry_msg).await;
     }
 }
@@ -245,14 +246,12 @@ async fn led_task(mut led: Output<'static, peripherals::PB0>) {
 }
 
 #[embassy_executor::task]
-async fn telemetry_task(mut uart: UartTx<'static, peripherals::USART1, peripherals::DMA2_CH7>, telemetry: TelemetryChannelReceiver) {
+async fn telemetry_task(mut _uart: UartTx<'static, peripherals::USART1, peripherals::DMA2_CH7>, telemetry: TelemetryChannelReceiver) {
     loop {
         let telemetry = telemetry.receive().await;
+        let _state = telemetry.state;
 
-        let b0 = (telemetry.chnl0 & 0x0F) as u8;
-        let b1 = (telemetry.chnl0 >> 8) as u8;
-        let buf: [u8; 0x02] = [b0, b1];
-
-        uart.write(&buf[..]).await.unwrap();
+        // TODO(nnarain): This is blocking and needs to be updated
+        // write!(uart, "Pitch: {}, Roll: {}, Yaw: {}\r\n", state.attitude.pitch, state.attitude.roll, state.attitude.yaw).unwrap();
     }
 }
