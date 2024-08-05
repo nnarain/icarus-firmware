@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "icarus-core",
+    "icarus-firmware",
+    "icarus-cli"
+]
+resolver = "2"
+
+# Patch for MPU driver in icarus-firmware
+[patch.crates-io]
+mpu6050-dmp = { git = "https://github.com/barafael/mpu6050-dmp-rs" }

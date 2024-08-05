@@ -1,0 +1,37 @@
+cargo-features = ["per-package-target"]
+
+[package]
+edition = "2021"
+name = "icarus-firmware"
+version = "0.1.0"
+license = "MIT"
+forced-target = "thumbv7em-none-eabihf"
+
+[dependencies]
+icarus-core = { path = "../icarus-core" }
+
+# Change stm32f429zi to your chip name, if necessary.
+embassy-stm32 = { version = "0.1.0", features = ["stm32f405rg", "time-driver-any", "chrono"] }
+embassy-embedded-hal = "0.1.0"
+embassy-sync = { version = "0.6.0" }
+embassy-executor = { version = "0.5.0", features = ["arch-cortex-m", "executor-interrupt", "executor-thread", "task-arena-size-32768",  "integrated-timers"] }
+embassy-futures = { version = "0.1.0" }
+embassy-time = {version = "0.3.1", features = ["tick-hz-32_768"]}
+
+cortex-m = { version = "0.7.7", features = ["inline-asm", "critical-section-single-core"] }
+cortex-m-rt = "0.7.3"
+panic-halt = "0.2"
+embedded-hal = "1.0.0"
+# Bus sharing
+#embedded-hal-bus = { version = "0.2", features = ["async"] }
+embedded-io = { version = "0.6.0" }
+embedded-io-async = { version = "0.6.1" }
+futures-util = { version = "0.3.30", default-features = false }
+nb = "1.0.0"
+
+thiserror = { version = "1.0", package = "thiserror-core", default-features = false}
+
+mpu6050-dmp = "0.4.0"
+ahrs = {version = "0.6.0", default-features = false}
+nalgebra = { version = "0.31.4", default-features = false, features = ["libm-force"]}
+pid = "4.0"
