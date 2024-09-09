@@ -8,5 +8,5 @@
 use crate::sensors::EstimatedState;
 
 pub struct Telemetry {
-    pub state: EstimatedState,
+    pub connected: bool,
 }

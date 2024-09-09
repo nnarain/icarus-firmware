@@ -38,3 +38,9 @@ pub mod queues {
     pub type TelemetryChannelSender = Sender<'static, ThreadModeRawMutex, Telemetry, 1>;
     pub type TelemetryChannelReceiver = Receiver<'static, ThreadModeRawMutex, Telemetry, 1>;
 }
+
+pub mod utils {
+    pub fn map_range(value: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
+        ((value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min) as f32
+    }
+}
