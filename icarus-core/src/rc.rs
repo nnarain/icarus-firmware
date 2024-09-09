@@ -16,14 +16,14 @@ pub enum RcError {
 /// Data received from the RC controller
 #[derive(Debug, Default)]
 pub struct RcInput {
-    pub chnl0: u16,
-    pub chnl1: u16,
-    pub chnl2: u16,
-    pub chnl3: u16,
+    pub chnl0: i16,
+    pub chnl1: i16,
+    pub chnl2: i16,
+    pub chnl3: i16,
 }
 
 impl RcInput {
-    pub fn new(chnl0: u16, chnl1: u16, chnl2: u16, chnl3: u16) -> Self {
+    pub fn new(chnl0: i16, chnl1: i16, chnl2: i16, chnl3: i16) -> Self {
         RcInput { chnl0, chnl1, chnl2, chnl3 }
     }
 
@@ -37,10 +37,10 @@ impl TryFrom<&[u8]> for RcInput {
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() >= 8 {
-            let chnl0 = (bytes[0] as u16) | ((bytes[1] as u16) << 8);
-            let chnl1 = (bytes[2] as u16) | ((bytes[3] as u16) << 8);
-            let chnl2 = (bytes[4] as u16) | ((bytes[5] as u16) << 8);
-            let chnl3 = (bytes[6] as u16) | ((bytes[7] as u16) << 8);
+            let chnl0 = (bytes[0] as i16) | ((bytes[1] as i16) << 8);
+            let chnl1 = (bytes[2] as i16) | ((bytes[3] as i16) << 8);
+            let chnl2 = (bytes[4] as i16) | ((bytes[5] as i16) << 8);
+            let chnl3 = (bytes[6] as i16) | ((bytes[7] as i16) << 8);
 
             Ok(RcInput::new(chnl0, chnl1, chnl2, chnl3))
         }

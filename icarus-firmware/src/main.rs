@@ -17,6 +17,7 @@ use embassy_stm32::{
 use embassy_time::{with_timeout, Duration, Timer};
 use embassy_sync::channel::Channel;
 
+use icarus_core::rc::RcInput;
 use panic_halt as _;
 
 use icarus_firmware::{
@@ -24,6 +25,7 @@ use icarus_firmware::{
     telemetry::Telemetry,
     sensors::{EstimatedState, Attitude},
     queues::*,
+    utils,
     MAX_ROTOR_THROTTLE, MIN_ROTOR_THROTTLE, ROTOR_PWM_FREQ
 };
 
@@ -92,14 +94,12 @@ async fn main(spawner: Spawner) {
     // Control loop task
     // TODO(nnarain): PWM
     spawner.spawn(control_task(RC_INPUT_CHNL.receiver(), ESTIMATED_STATE_CHNL.receiver(), pwm, TELEMETRY_CHNL.sender())).unwrap();
-    // LED task
-    //spawner.spawn(led_task(led)).unwrap();
     // Telemetry task
     spawner.spawn(telemetry_task(uart_tx, TELEMETRY_CHNL.receiver())).unwrap();
 }
 
 #[embassy_executor::task]
-async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, mut pwm: SimplePwm<'static, peripherals::TIM5>, _telemetry: TelemetryChannelSender) {
+async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, mut pwm: SimplePwm<'static, peripherals::TIM5>, telemetry: TelemetryChannelSender) {
     // PID controller for pitch
     let mut pitch_pid: Pid<f32> = Pid::new(0.0, 10.0);
     pitch_pid.p(8.75, 100.0);
@@ -125,26 +125,37 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
     pwm.enable(PwmChannel::Ch4);
 
     loop {
-        // Get the RC input and estimated state
 
-        // TODO(nnarain): this needs to timeout
-        let input = with_timeout(Duration::from_millis(10), rc_input.receive()).await.unwrap_or_default();
+        // Get the RC input
+        // The expected range for each channel is [-511, 512]
+        // let input = with_timeout(Duration::from_millis(10), rc_input.receive()).await.unwrap_or_default();
+        let input = with_timeout(Duration::from_millis(10), rc_input.receive()).await;
+
+        let is_connected = input.is_ok();
+
+        let (chnl0, chnl1, _chnl2, chnl3) = input.unwrap_or_default().throttle();
+
+        let pitch_input = utils::map_range(chnl0, -511.0, 512.0, -10.0, 10.0);
+        let roll_input = utils::map_range(chnl1, -511.0, 512.0, -10.0, 10.0);
+        // let yaw_input = utils::map_range(chnl2, -511.0, 512.0, -10.0, 10.0);
+
+        let throttle = utils::map_range(chnl3, -511.0, -512.0, MIN_ROTOR_THROTTLE as f32, MAX_ROTOR_THROTTLE as f32);
+
+        // Get the estimated state
         let state = estimated_state.receive().await;
-
-        // Pitch, roll, yaw input from RC controller
-        let (pitch_input, roll_input, yaw_input, throttle) = input.throttle();
         // Estimated pitch, roll, yaw
-        let Attitude {pitch, roll, yaw} = state.attitude;
+        // let Attitude {pitch, roll, yaw} = state.attitude;
 
         // Update the PID controllers with the new set points
         pitch_pid.setpoint(pitch_input);
         roll_pid.setpoint(roll_input);
-        yaw_pid.setpoint(yaw_input);
+        // yaw_pid.setpoint(yaw_input);
 
         // Get the output of the PID controller
-        let pitch_output = pitch_pid.next_control_output(pitch).output;
-        let roll_output = roll_pid.next_control_output(roll).output;
-        let yaw_output = yaw_pid.next_control_output(yaw).output;
+        let pitch_output = pitch_pid.next_control_output(state.attitude.pitch).output;
+        let roll_output = roll_pid.next_control_output(state.attitude.roll).output;
+        // let yaw_output = yaw_pid.next_control_output(yaw).output;
+        let yaw_output = 0.0;
 
         // Mix the PID outputs to get the individual rotor throttles
 
@@ -172,8 +183,9 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         pwm.set_duty(PwmChannel::Ch3, t3);
         pwm.set_duty(PwmChannel::Ch4, t4);
 
-        let _telemetry_msg = Telemetry {state,};
-        // telemetry.send(telemetry_msg).await;
+        // Send telemetry
+        let telemetry_msg = Telemetry {connected: is_connected};
+        telemetry.send(telemetry_msg).await;
     }
 }
 
@@ -227,21 +239,15 @@ async fn rc_input_task(uart: UartRx<'static, peripherals::USART1, peripherals::D
     }
 }
 
-// TODO(nnarain): This is on the devboard not icarus.
 #[embassy_executor::task]
-async fn led_task(mut led: Output<'static, peripherals::PB0>) {
-    // Toggle at 1Hz
-    loop {
-        led.toggle();
-        Timer::after_millis(1000).await;
-    }
-}
-
-#[embassy_executor::task]
-async fn telemetry_task(mut _uart: UartTx<'static, peripherals::USART1, peripherals::DMA2_CH7>, telemetry: TelemetryChannelReceiver) {
+async fn telemetry_task(mut uart: UartTx<'static, peripherals::USART1, peripherals::DMA2_CH7>, telemetry: TelemetryChannelReceiver) {
     loop {
         let telemetry = telemetry.receive().await;
-        let _state = telemetry.state;
+
+        let mut buf: [u8; 1] = [0; 1];
+        buf[0] = telemetry.connected as u8;
+
+        uart.write(&buf[..]).await.unwrap();
 
         // TODO(nnarain): This is blocking and needs to be updated
         // write!(uart, "Pitch: {}, Roll: {}, Yaw: {}\r\n", state.attitude.pitch, state.attitude.roll, state.attitude.yaw).unwrap();
