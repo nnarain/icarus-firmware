@@ -14,7 +14,7 @@ use embassy_executor::Spawner;
 use embassy_stm32::{
     bind_interrupts, gpio::{Output, OutputType}, i2c::{self, I2c}, peripherals, time::{hz, Hertz}, timer::{simple_pwm::{PwmPin, SimplePwm}, Channel as PwmChannel}, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
 };
-use embassy_time::{with_timeout, Duration, Timer};
+use embassy_time::{with_timeout, Duration, Timer, Instant};
 use embassy_sync::channel::Channel;
 
 use icarus_core::rc::RcInput;
@@ -124,16 +124,31 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
     pwm.enable(PwmChannel::Ch3);
     pwm.enable(PwmChannel::Ch4);
 
+    let mut last_cmd: RcInput = Default::default();
+    let mut last_input_recv = Instant::now();
+    let mut is_connected = false;
+
+
     loop {
+        let now = Instant::now();
 
         // Get the RC input
         // The expected range for each channel is [-511, 512]
-        // let input = with_timeout(Duration::from_millis(10), rc_input.receive()).await.unwrap_or_default();
-        let input = with_timeout(Duration::from_millis(10), rc_input.receive()).await;
+        let input = rc_input.try_receive();
 
-        let is_connected = input.is_ok();
+        if let Ok(input) = input {
+            last_cmd = input;
+            last_input_recv = now;
+            is_connected = true;
+        }
+        else {
+            if now.duration_since(last_input_recv) > Duration::from_millis(1000) {
+                last_cmd = RcInput::default();
+                is_connected = false;
+            }
+        }
 
-        let (chnl0, chnl1, _chnl2, chnl3) = input.unwrap_or_default().throttle();
+        let (chnl0, chnl1, _chnl2, chnl3) = last_cmd.throttle();
 
         let pitch_input = utils::map_range(chnl0, -511.0, 512.0, -10.0, 10.0);
         let roll_input = utils::map_range(chnl1, -511.0, 512.0, -10.0, 10.0);
