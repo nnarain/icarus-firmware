@@ -154,7 +154,10 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         let roll_input = utils::map_range(chnl1, -511.0, 512.0, -10.0, 10.0);
         // let yaw_input = utils::map_range(chnl2, -511.0, 512.0, -10.0, 10.0);
 
-        let throttle = utils::map_range(chnl3, -511.0, -512.0, MIN_ROTOR_THROTTLE as f32, MAX_ROTOR_THROTTLE as f32);
+        // Only use the forward portion of the joystick command
+        let throttle = chnl3.clamp(0.0, 512.0);
+        // Remap the throttle to up to 50% of the max PWM range
+        let throttle = utils::map_range(throttle, 0.0, 512.0, MIN_ROTOR_THROTTLE as f32, MAX_ROTOR_THROTTLE as f32);
 
         // Get the estimated state
         let state = estimated_state.receive().await;
@@ -199,7 +202,7 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
         pwm.set_duty(PwmChannel::Ch4, t4);
 
         // Send telemetry
-        let telemetry_msg = Telemetry {connected: is_connected};
+        let telemetry_msg = Telemetry {connected: is_connected, throttle: throttle as u16, t1,};
         telemetry.send(telemetry_msg).await;
     }
 }
@@ -214,7 +217,7 @@ async fn sensors_task(mut imu: Mpu6050<I2c<'static, peripherals::I2C1, periphera
 
         // TODO(nnarain): Check units
         let accel = Vector3::new(accel.x() as f64, accel.y() as f64, accel.z() as f64);
-        let gyro = Vector3::new(gyro.x() as f64, gyro.y() as f64, gyro.z() as f64);
+        let gyro = Vector3::new((gyro.x() as f64).to_radians(), (gyro.y() as f64).to_radians(), (gyro.z() as f64).to_radians());
 
         let quat = ahrs.update_imu(&gyro, &accel).unwrap();
 
@@ -259,8 +262,16 @@ async fn telemetry_task(mut uart: UartTx<'static, peripherals::USART1, periphera
     loop {
         let telemetry = telemetry.receive().await;
 
-        let mut buf: [u8; 1] = [0; 1];
+        let mut buf: [u8; 6] = [0; 6];
         buf[0] = telemetry.connected as u8;
+
+        buf[1] = (telemetry.throttle & 0x00FF) as u8;
+        buf[2] = (telemetry.throttle & 0xFF00 >> 8) as u8;
+
+        buf[3] = (telemetry.t1 & 0x00FF) as u8;
+        buf[4] = (telemetry.t1 & 0xFF00 >> 8) as u8;
+
+        buf[5] = 0x0F;
 
         uart.write(&buf[..]).await.unwrap();
 

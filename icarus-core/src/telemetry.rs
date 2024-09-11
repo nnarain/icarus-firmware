@@ -7,6 +7,9 @@
 
 use crate::sensors::EstimatedState;
 
+#[derive(Debug, Clone, Copy)]
 pub struct Telemetry {
     pub connected: bool,
+    pub throttle: u16,
+    pub t1: u16,
 }
