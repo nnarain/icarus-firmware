@@ -12,9 +12,9 @@
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
-    bind_interrupts, gpio::{Output, OutputType}, i2c::{self, I2c}, peripherals, time::{hz, Hertz}, timer::{simple_pwm::{PwmPin, SimplePwm}, Channel as PwmChannel}, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
+    bind_interrupts, gpio::OutputType, i2c::{self, I2c}, peripherals, time::{hz, Hertz}, timer::{simple_pwm::{PwmPin, SimplePwm}, Channel as PwmChannel}, usart::{self, Config as UartConfig, Uart, UartRx, UartTx}
 };
-use embassy_time::{with_timeout, Duration, Timer, Instant};
+use embassy_time::{Duration, Instant};
 use embassy_sync::channel::Channel;
 
 use icarus_core::rc::RcInput;
@@ -100,23 +100,25 @@ async fn main(spawner: Spawner) {
 
 #[embassy_executor::task]
 async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: EstimatedStateChannelReceiver, mut pwm: SimplePwm<'static, peripherals::TIM5>, telemetry: TelemetryChannelSender) {
+    // Set the maximum output of the PID to the max PWM throttle value
+    let max_pid_output = MAX_ROTOR_THROTTLE as f32;
+
+    // Define the PID term limits
+    let p_limit = 100.0;
+    let i_limit = 100.0;
+    let d_limit = 100.0;
+
     // PID controller for pitch
-    let mut pitch_pid: Pid<f32> = Pid::new(0.0, 10.0);
-    pitch_pid.p(8.75, 100.0);
-    pitch_pid.i(3.5, 100.0);
-    pitch_pid.d(0.1, 100.0);
+    let mut pitch_pid: Pid<f32> = Pid::new(0.0, max_pid_output);
+    pitch_pid.p(8.75, p_limit).i(3.5, i_limit).d(0.1, d_limit);
 
     // PID controller roll
-    let mut roll_pid: Pid<f32> = Pid::new(0.0, 10.0);
-    roll_pid.p(1.0, 100.0);
-    roll_pid.i(3.5, 100.0);
-    roll_pid.d(0.1, 100.0);
+    let mut roll_pid: Pid<f32> = Pid::new(0.0, max_pid_output);
+    roll_pid.p(1.0, p_limit).i(3.5, i_limit).d(0.1, d_limit);
 
     // PID controller for yaw
-    let mut yaw_pid: Pid<f32> = Pid::new(0.0, 10.0);
-    yaw_pid.p(1.0, 100.0);
-    yaw_pid.i(3.5, 100.0);
-    yaw_pid.d(0.1, 100.0);
+    // let mut yaw_pid: Pid<f32> = Pid::new(0.0, max_pid_output);
+    // yaw_pid.p(1.0, 100.0).i(3.5, 100.0).d(0.1, 100.0);
 
     // Enable all PWM outputs
     pwm.enable(PwmChannel::Ch1);
@@ -124,10 +126,12 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
     pwm.enable(PwmChannel::Ch3);
     pwm.enable(PwmChannel::Ch4);
 
+    // Last command received from the RC controller
     let mut last_cmd: RcInput = Default::default();
+    // Time of last input received
     let mut last_input_recv = Instant::now();
+    // Whether the RC controller is connected (i.e. sending commands)
     let mut is_connected = false;
-
 
     loop {
         let now = Instant::now();
@@ -148,21 +152,22 @@ async fn control_task(rc_input: RcInputChannelReceiver, estimated_state: Estimat
             }
         }
 
-        let (chnl0, chnl1, _chnl2, chnl3) = last_cmd.throttle();
+        // NOTE: The inputs are inverted
+        let (chnl0, chnl1, chnl2, chnl3) = last_cmd.throttle();
+        let (chnl0, chnl1, _chnl2, chnl3) = (chnl0 * -1.0, chnl1 * -1.0, chnl2 * -1.0, chnl3 * -1.0);
 
+        // Remap input range to [-10, +10] degrees for pitch and roll
         let pitch_input = utils::map_range(chnl0, -511.0, 512.0, -10.0, 10.0);
         let roll_input = utils::map_range(chnl1, -511.0, 512.0, -10.0, 10.0);
         // let yaw_input = utils::map_range(chnl2, -511.0, 512.0, -10.0, 10.0);
 
         // Only use the forward portion of the joystick command
-        let throttle = chnl3.clamp(0.0, 512.0);
-        // Remap the throttle to up to 50% of the max PWM range
+        let throttle = (chnl3).clamp(0.0, 512.0);
+        // Remap the throttle to the PWM range
         let throttle = utils::map_range(throttle, 0.0, 512.0, MIN_ROTOR_THROTTLE as f32, MAX_ROTOR_THROTTLE as f32);
 
         // Get the estimated state
         let state = estimated_state.receive().await;
-        // Estimated pitch, roll, yaw
-        // let Attitude {pitch, roll, yaw} = state.attitude;
 
         // Update the PID controllers with the new set points
         pitch_pid.setpoint(pitch_input);
