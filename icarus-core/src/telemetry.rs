@@ -5,8 +5,6 @@
 // @date Jul 16 2024
 //
 
-use crate::sensors::EstimatedState;
-
 #[derive(Debug, Clone, Copy)]
 pub struct Telemetry {
     pub connected: bool,
